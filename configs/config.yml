@@ -1,0 +1,17 @@
+production_env:
+  path: "./configs"
+development_env:
+  path: "./configs"
+
+cors:
+  allowed_origins: [
+    "http://localhost:3030",
+  ]
+  allow_credentials: true
+  allowed_methods: [ "GET","POST","DELETE","PUT","PATCH","OPTIONS" ]
+  allowed_headers: [ "*" ]
+
+logger:
+  info: "./logs/info.log"
+  error: "./logs/error.log"
+  gorm: "./logs/gorm.log"

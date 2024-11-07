@@ -1,0 +1,25 @@
+services:
+  app:
+    container_name: mosquitto_broker
+    build:
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres-db
+    expose:
+      - ${HTTP_SERVER_PORT}
+  postgres-db:
+    container_name: postgres_db_mb
+    restart: always
+    image: postgres:13
+    environment:
+      - DEBUG=false
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DBNAME}
+    ports:
+      - ${POSTGRES_PORT}:${POSTGRES_PORT}
+    expose:
+      - ${POSTGRES_PORT}
+    volumes:
+      - ./postgres-data:/data/postgres
+    command: -p ${POSTGRES_PORT}
