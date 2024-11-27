@@ -1,7 +1,4 @@
 *.env
 *.log
-*.acl
-*.conf
-*.txt
-/internal/mosquitto/passwordfile
+
 .idea

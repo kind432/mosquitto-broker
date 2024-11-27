@@ -60,9 +60,14 @@ func NewServer(
 					"The app is running in %s mode",
 					m,
 				)
+				loggers.Info.Printf(
+					"HTTP address %s:%s",
+					serverHost,
+					port,
+				)
 				go func() {
 					if err = server.ListenAndServe(); err != nil {
-						loggers.Err.Fatal("Failed to listen and serve: %v", err)
+						loggers.Err.Fatalf("Failed to listen and serve: %v", err)
 					}
 				}()
 				return
