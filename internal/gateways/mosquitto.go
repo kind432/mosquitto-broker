@@ -31,8 +31,7 @@ func (m MosquittoGatewayImpl) MosquittoLaunch(mosquittoOn bool) {
 			command = "taskkill"
 			args = []string{"/IM", "mosquitto.exe", "/F"}
 		} else {
-			command = "" +
-				""
+			command = "pkill"
 			args = []string{"-9", "mosquitto"}
 		}
 		go m.mosquitto.RunCommand(command, args...)
