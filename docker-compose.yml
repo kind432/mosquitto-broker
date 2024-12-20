@@ -24,7 +24,7 @@ services:
     ports:
       - "5431:5431"
     volumes:
-      - ~/.mq-pg-data:/var/lib/postgresql/data/pgdata
+      - ~/.mb-pg-data:/var/lib/postgresql/data/pgdata
     command: -p 5431
 
 volumes:
