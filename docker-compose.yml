@@ -1,6 +1,7 @@
 services:
   app:
     container_name: mosquitto_broker
+    image: mosquitto_broker:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -8,27 +9,26 @@ services:
       - "8000:8000"
       - "1882:1882"
     volumes:
-      - ./mosquitto-data:/mqtt_broker/internal/mosquitto/
+      - ~/.mb-data:/mqtt_broker/internal/mosquitto/
     depends_on:
       - postgres-db
 
   postgres-db:
     image: postgres:latest
     restart: always
-    container_name: postgres_db_mb
+    container_name: mb_postgres_db
     environment:
       POSTGRES_USER: robbo
       POSTGRES_PASSWORD: robbo_pwd
       POSTGRES_DB: broker_db
-      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5431:5431"
     volumes:
-      - ./pg-data:/var/lib/postgresql/data/pgdata
+      - ~/.mq-pg-data:/var/lib/postgresql/data/pgdata
     command: -p 5431
 
 volumes:
-  mosquitto-data:
-    driver: local
-  pg-data:
-    driver: local
+  mb-data:
+    name: mb-data
+  mb-pg-data:
+    name: mb-pg-data
