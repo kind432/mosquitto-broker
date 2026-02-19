@@ -2,12 +2,14 @@ package http
 
 import (
 	"errors"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
+
 	"github.com/robboworld/mosquitto-broker/internal/models"
 	"github.com/robboworld/mosquitto-broker/internal/services"
 	"github.com/robboworld/mosquitto-broker/pkg/logger"
 	"github.com/robboworld/mosquitto-broker/pkg/utils"
-	"net/http"
 )
 
 type AuthHandler struct {

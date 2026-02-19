@@ -1,14 +1,16 @@
 package services
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/spf13/viper"
+
 	"github.com/robboworld/mosquitto-broker/internal/consts"
 	"github.com/robboworld/mosquitto-broker/internal/gateways"
 	"github.com/robboworld/mosquitto-broker/internal/models"
 	"github.com/robboworld/mosquitto-broker/pkg/utils"
-	"github.com/spf13/viper"
-	"net/http"
-	"time"
 )
 
 type Tokens struct {
@@ -22,27 +24,41 @@ type UserClaims struct {
 	Role models.Role
 }
 
-type AuthService interface {
-	SignUp(newUser models.UserCore) error
-	SignIn(email, password string) (Tokens, error)
-	Refresh(token string) (string, error)
+type authService struct {
+	userGateway       gateways.UserGateway
+	mosquittoGateway  gateways.MosquittoGateway
+	accessSigningKey  []byte
+	accessTokenTTL    time.Duration
+	refreshSigningKey []byte
+	refreshTokenTTL   time.Duration
 }
 
-type AuthServiceImpl struct {
-	userGateway      gateways.UserGateway
-	mosquittoGateway gateways.MosquittoGateway
+func NewAuthService(
+	userGateway gateways.UserGateway,
+	mosquittoGateway gateways.MosquittoGateway,
+) *authService {
+	return &authService{
+		userGateway:       userGateway,
+		mosquittoGateway:  mosquittoGateway,
+		accessSigningKey:  []byte(viper.GetString("auth_access_signing_key")),
+		accessTokenTTL:    viper.GetDuration("auth_access_token_ttl"),
+		refreshSigningKey: []byte(viper.GetString("auth_refresh_signing_key")),
+		refreshTokenTTL:   viper.GetDuration("auth_refresh_token_ttl"),
+	}
 }
 
-func (a AuthServiceImpl) Refresh(token string) (string, error) {
-	claims, err := parseToken(token, []byte(viper.GetString("auth_refresh_signing_key")))
+func (a *authService) Refresh(token string) (string, error) {
+	claims, err := parseToken(token, a.refreshSigningKey)
 	if err != nil {
 		return "", err
 	}
+
 	user := models.UserCore{
 		ID:   claims.Id,
 		Role: claims.Role,
 	}
-	newAccessToken, err := generateToken(user, viper.GetDuration("auth_access_token_ttl"), []byte(viper.GetString("auth_access_signing_key")))
+
+	newAccessToken, err := generateToken(user, a.accessTokenTTL, a.accessSigningKey)
 	if err != nil {
 		return "", utils.ResponseError{
 			Code:    http.StatusInternalServerError,
@@ -52,41 +68,46 @@ func (a AuthServiceImpl) Refresh(token string) (string, error) {
 	return newAccessToken, nil
 }
 
-func (a AuthServiceImpl) SignIn(email, password string) (Tokens, error) {
+func (a *authService) SignIn(email, password string) (Tokens, error) {
 	user, err := a.userGateway.GetUserByEmail(email)
 	if err != nil {
 		return Tokens{}, err
 	}
+
 	if err = utils.ComparePassword(user.Password, password); err != nil {
 		return Tokens{}, utils.ResponseError{
 			Code:    http.StatusBadRequest,
 			Message: consts.ErrIncorrectPasswordOrEmail,
 		}
 	}
-	access, err := generateToken(user, viper.GetDuration("auth_access_token_ttl"), []byte(viper.GetString("auth_access_signing_key")))
+
+	access, err := generateToken(user, a.accessTokenTTL, a.accessSigningKey)
 	if err != nil {
 		return Tokens{}, utils.ResponseError{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
 		}
 	}
-	refresh, err := generateToken(user, viper.GetDuration("auth_refresh_token_ttl"), []byte(viper.GetString("auth_refresh_signing_key")))
+
+	refresh, err := generateToken(user, a.refreshTokenTTL, a.refreshSigningKey)
 	if err != nil {
 		return Tokens{}, utils.ResponseError{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
 		}
 	}
+
 	return Tokens{Access: access, Refresh: refresh}, nil
 }
 
-func (a AuthServiceImpl) SignUp(newUser models.UserCore) error {
+func (a *authService) SignUp(newUser models.UserCore) error {
 	if !utils.IsValidEmail(newUser.Email) {
 		return utils.ResponseError{
 			Code:    http.StatusBadRequest,
 			Message: consts.ErrIncorrectPasswordOrEmail,
 		}
 	}
+
 	exist, err := a.userGateway.DoesExistEmail(0, newUser.Email)
 	if err != nil {
 		return err
@@ -97,17 +118,19 @@ func (a AuthServiceImpl) SignUp(newUser models.UserCore) error {
 			Message: consts.ErrEmailAlreadyInUse,
 		}
 	}
+
 	if len(newUser.Password) < 8 {
 		return utils.ResponseError{
 			Code:    http.StatusBadRequest,
 			Message: consts.ErrShortPassword,
 		}
 	}
+
 	password := newUser.Password
 	passwordHash := utils.HashPassword(password)
 	newUser.Password = passwordHash
-	_, err = a.userGateway.CreateUser(newUser)
-	if err != nil {
+
+	if err = a.userGateway.CreateUser(newUser); err != nil {
 		return err
 	}
 

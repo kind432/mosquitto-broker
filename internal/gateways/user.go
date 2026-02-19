@@ -2,29 +2,27 @@ package gateways
 
 import (
 	"errors"
+	"net/http"
+
 	"github.com/robboworld/mosquitto-broker/internal/consts"
 	"github.com/robboworld/mosquitto-broker/internal/db"
 	"github.com/robboworld/mosquitto-broker/internal/models"
 	"github.com/robboworld/mosquitto-broker/pkg/utils"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
-	"net/http"
 )
-
-type UserGateway interface {
-	CreateUser(user models.UserCore) (newUser models.UserCore, err error)
-	GetUserById(id uint) (user models.UserCore, err error)
-	GetUserByEmail(email string) (user models.UserCore, err error)
-	DoesExistEmail(id uint, email string) (bool, error)
-	SetMosquittoOn(id uint, mosquittoOn bool) error
-}
 
 type UserGatewayImpl struct {
 	postgresClient db.PostgresClient
 }
 
-func (u UserGatewayImpl) GetUserByEmail(email string) (user models.UserCore, err error) {
-	if err = u.postgresClient.Db.Where("email = ?", email).Take(&user).Error; err != nil {
+func NewUserGateway(pc db.PostgresClient) *UserGatewayImpl {
+	return &UserGatewayImpl{postgresClient: pc}
+}
+
+func (u *UserGatewayImpl) GetUserByEmail(email string) (models.UserCore, error) {
+	var user models.UserCore
+
+	if err := u.postgresClient.Db.Where("email = ?", email).Take(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return user, utils.ResponseError{
 				Code:    http.StatusBadRequest,
@@ -39,7 +37,7 @@ func (u UserGatewayImpl) GetUserByEmail(email string) (user models.UserCore, err
 	return user, nil
 }
 
-func (u UserGatewayImpl) DoesExistEmail(id uint, email string) (bool, error) {
+func (u *UserGatewayImpl) DoesExistEmail(id uint, email string) (bool, error) {
 	if err := u.postgresClient.Db.Where("id != ? AND email = ?", id, email).
 		Take(&models.UserCore{}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -53,18 +51,20 @@ func (u UserGatewayImpl) DoesExistEmail(id uint, email string) (bool, error) {
 	return true, nil
 }
 
-func (u UserGatewayImpl) CreateUser(user models.UserCore) (newUser models.UserCore, err error) {
-	if err = u.postgresClient.Db.Create(&user).Clauses(clause.Returning{}).Error; err != nil {
-		return models.UserCore{}, utils.ResponseError{
+func (u *UserGatewayImpl) CreateUser(user models.UserCore) error {
+	if err := u.postgresClient.Db.Create(&user).Error; err != nil {
+		return utils.ResponseError{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
 		}
 	}
-	return user, nil
+	return nil
 }
 
-func (u UserGatewayImpl) GetUserById(id uint) (user models.UserCore, err error) {
-	if err = u.postgresClient.Db.First(&user, id).Error; err != nil {
+func (u *UserGatewayImpl) GetUserById(id uint) (models.UserCore, error) {
+	var user models.UserCore
+
+	if err := u.postgresClient.Db.First(&user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return models.UserCore{}, utils.ResponseError{
 				Code:    http.StatusBadRequest,
@@ -79,8 +79,9 @@ func (u UserGatewayImpl) GetUserById(id uint) (user models.UserCore, err error) 
 	return user, nil
 }
 
-func (u UserGatewayImpl) SetMosquittoOn(id uint, mosquittoOn bool) error {
+func (u *UserGatewayImpl) SetMosquittoOn(id uint, mosquittoOn bool) error {
 	var user models.UserCore
+
 	if err := u.postgresClient.Db.First(&user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return utils.ResponseError{

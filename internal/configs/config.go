@@ -1,8 +1,9 @@
 package configs
 
 import (
-	"github.com/robboworld/mosquitto-broker/internal/consts"
 	"github.com/spf13/viper"
+
+	"github.com/robboworld/mosquitto-broker/internal/consts"
 )
 
 func Init(m consts.Mode) error {

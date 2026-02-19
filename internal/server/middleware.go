@@ -1,17 +1,18 @@
 package server
 
 import (
-	"github.com/dgrijalva/jwt-go/v4"
-	"github.com/gin-gonic/gin"
-	"github.com/robboworld/mosquitto-broker/internal/consts"
-	"github.com/robboworld/mosquitto-broker/internal/models"
-	"github.com/robboworld/mosquitto-broker/internal/services"
-
-	"github.com/spf13/viper"
 	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/dgrijalva/jwt-go/v4"
+	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
+
+	"github.com/robboworld/mosquitto-broker/internal/consts"
+	"github.com/robboworld/mosquitto-broker/internal/models"
+	"github.com/robboworld/mosquitto-broker/internal/services"
 )
 
 func AuthMiddleware(errLogger *log.Logger) gin.HandlerFunc {

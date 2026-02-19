@@ -1,6 +1,11 @@
 package app
 
 import (
+	"log"
+	"os"
+
+	"go.uber.org/fx"
+
 	"github.com/robboworld/mosquitto-broker/internal/configs"
 	"github.com/robboworld/mosquitto-broker/internal/consts"
 	"github.com/robboworld/mosquitto-broker/internal/db"
@@ -10,9 +15,6 @@ import (
 	"github.com/robboworld/mosquitto-broker/internal/services"
 	"github.com/robboworld/mosquitto-broker/internal/transports/http"
 	"github.com/robboworld/mosquitto-broker/pkg/logger"
-	"go.uber.org/fx"
-	"log"
-	"os"
 )
 
 func InvokeWith(m consts.Mode, options ...fx.Option) *fx.App {

@@ -1,16 +1,18 @@
 package db
 
 import (
-	"github.com/robboworld/mosquitto-broker/internal/consts"
-	"github.com/robboworld/mosquitto-broker/internal/models"
-	"github.com/robboworld/mosquitto-broker/pkg/logger"
+	"log"
+	"os"
+	"time"
+
 	"github.com/spf13/viper"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormLogger "gorm.io/gorm/logger"
-	"log"
-	"os"
-	"time"
+
+	"github.com/robboworld/mosquitto-broker/internal/consts"
+	"github.com/robboworld/mosquitto-broker/internal/models"
+	"github.com/robboworld/mosquitto-broker/pkg/logger"
 )
 
 type PostgresClient struct {
