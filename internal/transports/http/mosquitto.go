@@ -55,7 +55,7 @@ func (h *mosquittoHandler) Launch(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}
 
-	err := h.mosquitto.MosquittoLaunch(userId, input.MosquittoOn)
+	err := h.mosquitto.Launch(userId, input.MosquittoOn)
 	if err != nil {
 		h.loggers.Err.Printf("%s", err.Error())
 		var respErr utils.ResponseError

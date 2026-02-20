@@ -21,7 +21,7 @@ func NewTopicGateway(pc db.PostgresClient) *topicGateway {
 	return &topicGateway{pc}
 }
 
-func (t *topicGateway) CreateTopic(topic models.TopicCore) (models.TopicCore, error) {
+func (t *topicGateway) Create(topic models.TopicCore) (models.TopicCore, error) {
 	if err := t.postgresClient.DB.Create(&topic).Clauses(clause.Returning{}).Error; err != nil {
 		return models.TopicCore{}, utils.ResponseError{
 			Code:    http.StatusInternalServerError,
@@ -31,7 +31,7 @@ func (t *topicGateway) CreateTopic(topic models.TopicCore) (models.TopicCore, er
 	return topic, nil
 }
 
-func (t *topicGateway) GetTopicById(id uint) (models.TopicCore, error) {
+func (t *topicGateway) GetById(id uint) (models.TopicCore, error) {
 	var topic models.TopicCore
 
 	if err := t.postgresClient.DB.First(&topic, id).Error; err != nil {
@@ -49,7 +49,7 @@ func (t *topicGateway) GetTopicById(id uint) (models.TopicCore, error) {
 	return topic, nil
 }
 
-func (t *topicGateway) GetTopicsByUserId(userId uint, offset, limit int) ([]models.TopicCore, uint, error) {
+func (t *topicGateway) GetByUserId(userId uint, offset, limit int) ([]models.TopicCore, uint, error) {
 	var topics []models.TopicCore
 	var count int64
 
@@ -68,7 +68,7 @@ func (t *topicGateway) GetTopicsByUserId(userId uint, offset, limit int) ([]mode
 	return topics, uint(count), nil
 }
 
-func (t *topicGateway) GetAllTopics(offset, limit int) ([]models.TopicCore, uint, error) {
+func (t *topicGateway) GetAll(offset, limit int) ([]models.TopicCore, uint, error) {
 	var topics []models.TopicCore
 	var count int64
 
@@ -83,7 +83,7 @@ func (t *topicGateway) GetAllTopics(offset, limit int) ([]models.TopicCore, uint
 	return topics, uint(count), nil
 }
 
-func (t *topicGateway) UpdateTopicPermissions(topic models.TopicCore) (models.TopicCore, error) {
+func (t *topicGateway) UpdatePermissions(topic models.TopicCore) (models.TopicCore, error) {
 	var existingTopic models.TopicCore
 	if err := t.postgresClient.DB.First(&existingTopic, topic.ID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -112,7 +112,7 @@ func (t *topicGateway) UpdateTopicPermissions(topic models.TopicCore) (models.To
 	return existingTopic, nil
 }
 
-func (t *topicGateway) DeleteTopic(id uint) error {
+func (t *topicGateway) Delete(id uint) error {
 	if err := t.postgresClient.DB.Delete(&models.TopicCore{}, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return utils.ResponseError{
@@ -128,7 +128,7 @@ func (t *topicGateway) DeleteTopic(id uint) error {
 	return nil
 }
 
-func (t *topicGateway) DoesExistTopic(id, userId uint, name string) (bool, error) {
+func (t *topicGateway) DoesExist(id, userId uint, name string) (bool, error) {
 	if err := t.postgresClient.DB.Where("id != ? AND user_id = ? AND name = ?", id, userId, name).
 		Take(&models.TopicCore{}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

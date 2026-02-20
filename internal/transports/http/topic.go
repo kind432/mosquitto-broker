@@ -32,11 +32,11 @@ func NewTopicHandler(
 func (h *topicHandler) SetupTopicRoutes(router *gin.Engine) {
 	topicGroup := router.Group("/topic")
 	{
-		topicGroup.POST("/", h.CreateTopic)
-		topicGroup.GET("/:id", h.GetTopicById)
-		topicGroup.GET("/", h.GetAllTopics)
-		topicGroup.PUT("/", h.UpdateTopicPermissions)
-		topicGroup.DELETE("/:id", h.DeleteTopic)
+		topicGroup.POST("/", h.Create)
+		topicGroup.GET("/:id", h.GetById)
+		topicGroup.GET("/", h.GetAll)
+		topicGroup.PUT("/", h.UpdatePermissions)
+		topicGroup.DELETE("/:id", h.Delete)
 	}
 }
 
@@ -46,7 +46,7 @@ type NewTopic struct {
 	CanWrite bool   `json:"can_write"`
 }
 
-func (h *topicHandler) CreateTopic(c *gin.Context) {
+func (h *topicHandler) Create(c *gin.Context) {
 	var input NewTopic
 	if err := c.ShouldBindJSON(&input); err != nil {
 		h.loggers.Err.Printf("%s", err.Error())
@@ -71,7 +71,7 @@ func (h *topicHandler) CreateTopic(c *gin.Context) {
 		UserId:   userId,
 	}
 
-	newTopic, err := h.topic.CreateTopic(topic, userId)
+	newTopic, err := h.topic.Create(topic, userId)
 	if err != nil {
 		h.loggers.Err.Printf("%s", err.Error())
 		var respErr utils.ResponseError
@@ -88,7 +88,7 @@ func (h *topicHandler) CreateTopic(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"topic": topicHttp})
 }
 
-func (h *topicHandler) GetTopicById(c *gin.Context) {
+func (h *topicHandler) GetById(c *gin.Context) {
 	userId := c.Value(consts.KeyId).(uint)
 	role := c.Value(consts.KeyRole).(models.Role)
 
@@ -107,7 +107,7 @@ func (h *topicHandler) GetTopicById(c *gin.Context) {
 		return
 	}
 
-	topic, err := h.topic.GetTopicById(uint(atoi), userId, role)
+	topic, err := h.topic.GetById(uint(atoi), userId, role)
 	if err != nil {
 		h.loggers.Err.Printf("%s", err.Error())
 		var respErr utils.ResponseError
@@ -124,7 +124,7 @@ func (h *topicHandler) GetTopicById(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"topic": topicHttp})
 }
 
-func (h *topicHandler) GetAllTopics(c *gin.Context) {
+func (h *topicHandler) GetAll(c *gin.Context) {
 	userId := c.Value(consts.KeyId).(uint)
 	role := c.Value(consts.KeyRole).(models.Role)
 
@@ -156,7 +156,7 @@ func (h *topicHandler) GetAllTopics(c *gin.Context) {
 		}
 	}
 
-	topics, countRows, err := h.topic.GetAllTopics(page, pageSize, userId, role)
+	topics, countRows, err := h.topic.GetAll(page, pageSize, userId, role)
 	if err != nil {
 		h.loggers.Err.Printf("%s", err.Error())
 		var respErr utils.ResponseError
@@ -181,7 +181,7 @@ type UpdateTopicPermissions struct {
 	CanWrite bool   `json:"can_write"`
 }
 
-func (h *topicHandler) UpdateTopicPermissions(c *gin.Context) {
+func (h *topicHandler) UpdatePermissions(c *gin.Context) {
 	var input UpdateTopicPermissions
 	if err := c.ShouldBindJSON(&input); err != nil {
 		h.loggers.Err.Printf("%s", err.Error())
@@ -212,7 +212,7 @@ func (h *topicHandler) UpdateTopicPermissions(c *gin.Context) {
 		CanWrite: input.CanWrite,
 	}
 
-	updatedTopic, err := h.topic.UpdateTopicPermissions(topic, userId, role)
+	updatedTopic, err := h.topic.UpdatePermissions(topic, userId, role)
 	if err != nil {
 		h.loggers.Err.Printf("%s", err.Error())
 		var respErr utils.ResponseError
@@ -229,7 +229,7 @@ func (h *topicHandler) UpdateTopicPermissions(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"topic": topicHttp})
 }
 
-func (h *topicHandler) DeleteTopic(c *gin.Context) {
+func (h *topicHandler) Delete(c *gin.Context) {
 	userId := c.Value(consts.KeyId).(uint)
 	role := c.Value(consts.KeyRole).(models.Role)
 
@@ -248,7 +248,7 @@ func (h *topicHandler) DeleteTopic(c *gin.Context) {
 		return
 	}
 
-	err = h.topic.DeleteTopic(uint(atoi), userId, role)
+	err = h.topic.Delete(uint(atoi), userId, role)
 	if err != nil {
 		h.loggers.Err.Printf("%s", err.Error())
 		var respErr utils.ResponseError

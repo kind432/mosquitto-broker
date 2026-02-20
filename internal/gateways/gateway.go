@@ -9,9 +9,9 @@ import (
 )
 
 type UserGateway interface {
-	CreateUser(user models.UserCore) error
-	GetUserById(id uint) (models.UserCore, error)
-	GetUserByEmail(email string) (models.UserCore, error)
+	Create(user models.UserCore) error
+	GetById(id uint) (models.UserCore, error)
+	GetByEmail(email string) (models.UserCore, error)
 	DoesExistEmail(id uint, email string) (bool, error)
 	SetMosquittoOn(id uint, mosquittoOn bool) error
 }
@@ -27,13 +27,13 @@ type MosquittoGateway interface {
 }
 
 type TopicGateway interface {
-	CreateTopic(topic models.TopicCore) (models.TopicCore, error)
-	GetTopicById(id uint) (models.TopicCore, error)
-	GetTopicsByUserId(userId uint, offset, limit int) (topics []models.TopicCore, countRows uint, err error)
-	GetAllTopics(offset, limit int) (topics []models.TopicCore, countRows uint, err error)
-	UpdateTopicPermissions(topic models.TopicCore) (models.TopicCore, error)
-	DeleteTopic(id uint) error
-	DoesExistTopic(id, userId uint, name string) (bool, error)
+	Create(topic models.TopicCore) (models.TopicCore, error)
+	GetById(id uint) (models.TopicCore, error)
+	GetByUserId(userId uint, offset, limit int) (topics []models.TopicCore, countRows uint, err error)
+	GetAll(offset, limit int) (topics []models.TopicCore, countRows uint, err error)
+	UpdatePermissions(topic models.TopicCore) (models.TopicCore, error)
+	Delete(id uint) error
+	DoesExist(id, userId uint, name string) (bool, error)
 }
 
 type Gateways struct {

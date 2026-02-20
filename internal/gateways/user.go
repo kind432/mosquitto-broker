@@ -19,7 +19,35 @@ func NewUserGateway(pc db.PostgresClient) *UserGatewayImpl {
 	return &UserGatewayImpl{postgresClient: pc}
 }
 
-func (u *UserGatewayImpl) GetUserByEmail(email string) (models.UserCore, error) {
+func (u *UserGatewayImpl) Create(user models.UserCore) error {
+	if err := u.postgresClient.DB.Create(&user).Error; err != nil {
+		return utils.ResponseError{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		}
+	}
+	return nil
+}
+
+func (u *UserGatewayImpl) GetById(id uint) (models.UserCore, error) {
+	var user models.UserCore
+
+	if err := u.postgresClient.DB.First(&user, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.UserCore{}, utils.ResponseError{
+				Code:    http.StatusBadRequest,
+				Message: consts.ErrNotFoundInDB,
+			}
+		}
+		return models.UserCore{}, utils.ResponseError{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		}
+	}
+	return user, nil
+}
+
+func (u *UserGatewayImpl) GetByEmail(email string) (models.UserCore, error) {
 	var user models.UserCore
 
 	if err := u.postgresClient.DB.Where("email = ?", email).Take(&user).Error; err != nil {
@@ -49,34 +77,6 @@ func (u *UserGatewayImpl) DoesExistEmail(id uint, email string) (bool, error) {
 		}
 	}
 	return true, nil
-}
-
-func (u *UserGatewayImpl) CreateUser(user models.UserCore) error {
-	if err := u.postgresClient.DB.Create(&user).Error; err != nil {
-		return utils.ResponseError{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		}
-	}
-	return nil
-}
-
-func (u *UserGatewayImpl) GetUserById(id uint) (models.UserCore, error) {
-	var user models.UserCore
-
-	if err := u.postgresClient.DB.First(&user, id).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return models.UserCore{}, utils.ResponseError{
-				Code:    http.StatusBadRequest,
-				Message: consts.ErrNotFoundInDB,
-			}
-		}
-		return models.UserCore{}, utils.ResponseError{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		}
-	}
-	return user, nil
 }
 
 func (u *UserGatewayImpl) SetMosquittoOn(id uint, mosquittoOn bool) error {

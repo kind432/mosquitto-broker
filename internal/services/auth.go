@@ -77,7 +77,7 @@ func (a *authService) SignUp(newUser models.UserCore) error {
 	passwordHash := utils.HashPassword(password)
 	newUser.Password = passwordHash
 
-	if err = a.userGateway.CreateUser(newUser); err != nil {
+	if err = a.userGateway.Create(newUser); err != nil {
 		return err
 	}
 
@@ -87,7 +87,7 @@ func (a *authService) SignUp(newUser models.UserCore) error {
 }
 
 func (a *authService) SignIn(email, password string) (Tokens, error) {
-	user, err := a.userGateway.GetUserByEmail(email)
+	user, err := a.userGateway.GetByEmail(email)
 	if err != nil {
 		return Tokens{}, err
 	}

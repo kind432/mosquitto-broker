@@ -46,7 +46,7 @@ func (h *userHandler) Me(c *gin.Context) {
 		return
 	}
 
-	user, err := h.user.GetUserById(userId, userId, role)
+	user, err := h.user.GetById(userId, userId, role)
 	if err != nil {
 		h.loggers.Err.Printf("%s", err.Error())
 		var respErr utils.ResponseError

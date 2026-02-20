@@ -19,7 +19,7 @@ func NewMosquittoService(
 	}
 }
 
-func (m *mosquittoService) MosquittoLaunch(id uint, mosquittoOn bool) error {
+func (m *mosquittoService) Launch(id uint, mosquittoOn bool) error {
 	err := m.userGateway.SetMosquittoOn(id, mosquittoOn)
 	if err != nil {
 		return err
@@ -34,6 +34,6 @@ func (m *mosquittoService) MosquittoLaunch(id uint, mosquittoOn bool) error {
 	return nil
 }
 
-func (m *mosquittoService) MosquittoStop() {
+func (m *mosquittoService) Stop() {
 	m.mosquittoGateway.MosquittoStop()
 }

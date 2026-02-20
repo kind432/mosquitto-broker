@@ -19,8 +19,8 @@ func NewUserService(userGateway gateways.UserGateway) *userService {
 	}
 }
 
-func (u *userService) GetUserById(id uint, clientId uint, clientRole models.Role) (models.UserCore, error) {
-	user, err := u.userGateway.GetUserById(id)
+func (u *userService) GetById(id uint, clientId uint, clientRole models.Role) (models.UserCore, error) {
+	user, err := u.userGateway.GetById(id)
 	if err != nil {
 		return models.UserCore{}, err
 	}

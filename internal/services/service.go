@@ -8,7 +8,7 @@ import (
 )
 
 type UserService interface {
-	GetUserById(id uint, clientId uint, clientRole models.Role) (models.UserCore, error)
+	GetById(id uint, clientId uint, clientRole models.Role) (models.UserCore, error)
 }
 
 type AuthService interface {
@@ -18,16 +18,16 @@ type AuthService interface {
 }
 
 type MosquittoService interface {
-	MosquittoLaunch(id uint, mosquittoOn bool) error
-	MosquittoStop()
+	Launch(id uint, mosquittoOn bool) error
+	Stop()
 }
 
 type TopicService interface {
-	CreateTopic(topic models.TopicCore, clientId uint) (models.TopicCore, error)
-	GetTopicById(id uint, clientId uint, clientRole models.Role) (models.TopicCore, error)
-	GetAllTopics(page, pageSize *int, clientId uint, clientRole models.Role) (topics []models.TopicCore, countRows uint, err error)
-	UpdateTopicPermissions(topic models.TopicCore, clientId uint, clientRole models.Role) (models.TopicCore, error)
-	DeleteTopic(id uint, clientId uint, clientRole models.Role) error
+	Create(topic models.TopicCore, clientId uint) (models.TopicCore, error)
+	GetById(id uint, clientId uint, clientRole models.Role) (models.TopicCore, error)
+	GetAll(page, pageSize *int, clientId uint, clientRole models.Role) (topics []models.TopicCore, countRows uint, err error)
+	UpdatePermissions(topic models.TopicCore, clientId uint, clientRole models.Role) (models.TopicCore, error)
+	Delete(id uint, clientId uint, clientRole models.Role) error
 }
 
 type Services struct {
