@@ -47,59 +47,6 @@ func NewAuthService(
 	}
 }
 
-func (a *authService) Refresh(token string) (string, error) {
-	claims, err := parseToken(token, a.refreshSigningKey)
-	if err != nil {
-		return "", err
-	}
-
-	user := models.UserCore{
-		ID:   claims.Id,
-		Role: claims.Role,
-	}
-
-	newAccessToken, err := generateToken(user, a.accessTokenTTL, a.accessSigningKey)
-	if err != nil {
-		return "", utils.ResponseError{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		}
-	}
-	return newAccessToken, nil
-}
-
-func (a *authService) SignIn(email, password string) (Tokens, error) {
-	user, err := a.userGateway.GetUserByEmail(email)
-	if err != nil {
-		return Tokens{}, err
-	}
-
-	if err = utils.ComparePassword(user.Password, password); err != nil {
-		return Tokens{}, utils.ResponseError{
-			Code:    http.StatusBadRequest,
-			Message: consts.ErrIncorrectPasswordOrEmail,
-		}
-	}
-
-	access, err := generateToken(user, a.accessTokenTTL, a.accessSigningKey)
-	if err != nil {
-		return Tokens{}, utils.ResponseError{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		}
-	}
-
-	refresh, err := generateToken(user, a.refreshTokenTTL, a.refreshSigningKey)
-	if err != nil {
-		return Tokens{}, utils.ResponseError{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-		}
-	}
-
-	return Tokens{Access: access, Refresh: refresh}, nil
-}
-
 func (a *authService) SignUp(newUser models.UserCore) error {
 	if !utils.IsValidEmail(newUser.Email) {
 		return utils.ResponseError{
@@ -137,6 +84,59 @@ func (a *authService) SignUp(newUser models.UserCore) error {
 	a.mosquittoGateway.WriteMosquittoPasswd(newUser.Email, password)
 	a.mosquittoGateway.WriteNewUserToAcl(newUser.Email)
 	return nil
+}
+
+func (a *authService) SignIn(email, password string) (Tokens, error) {
+	user, err := a.userGateway.GetUserByEmail(email)
+	if err != nil {
+		return Tokens{}, err
+	}
+
+	if err = utils.ComparePassword(user.Password, password); err != nil {
+		return Tokens{}, utils.ResponseError{
+			Code:    http.StatusBadRequest,
+			Message: consts.ErrIncorrectPasswordOrEmail,
+		}
+	}
+
+	access, err := generateToken(user, a.accessTokenTTL, a.accessSigningKey)
+	if err != nil {
+		return Tokens{}, utils.ResponseError{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		}
+	}
+
+	refresh, err := generateToken(user, a.refreshTokenTTL, a.refreshSigningKey)
+	if err != nil {
+		return Tokens{}, utils.ResponseError{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		}
+	}
+
+	return Tokens{Access: access, Refresh: refresh}, nil
+}
+
+func (a *authService) Refresh(token string) (string, error) {
+	claims, err := parseToken(token, a.refreshSigningKey)
+	if err != nil {
+		return "", err
+	}
+
+	user := models.UserCore{
+		ID:   claims.Id,
+		Role: claims.Role,
+	}
+
+	newAccessToken, err := generateToken(user, a.accessTokenTTL, a.accessSigningKey)
+	if err != nil {
+		return "", utils.ResponseError{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		}
+	}
+	return newAccessToken, nil
 }
 
 func generateToken(user models.UserCore, duration time.Duration, signingKey []byte) (token string, err error) {

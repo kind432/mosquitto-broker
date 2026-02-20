@@ -23,12 +23,12 @@ func InvokeWith(m consts.Mode, options ...fx.Option) *fx.App {
 	}
 	di := []fx.Option{
 		fx.Provide(func() consts.Mode { return m }),
-		fx.Provide(logger.InitLogger),
-		fx.Provide(mosquitto.NewMosquitto),
-		fx.Provide(db.InitPostgresClient),
-		fx.Provide(gateways.SetupGateways),
-		fx.Provide(services.SetupServices),
-		fx.Provide(http.SetupHandlers),
+		fx.Provide(logger.New),
+		fx.Provide(mosquitto.New),
+		fx.Provide(db.NewPostgresClient),
+		fx.Provide(gateways.New),
+		fx.Provide(services.New),
+		fx.Provide(http.NewHandlers),
 	}
 	for _, option := range options {
 		di = append(di, option)

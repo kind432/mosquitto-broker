@@ -49,27 +49,6 @@ func (t *topicService) CreateTopic(topic models.TopicCore, clientId uint) (model
 	return t.topicGateway.CreateTopic(topic)
 }
 
-func (t *topicService) UpdateTopicPermissions(topic models.TopicCore, clientId uint, clientRole models.Role) (models.TopicCore, error) {
-	currentTopic, err := t.topicGateway.GetTopicById(topic.ID)
-	if err != nil {
-		return models.TopicCore{}, err
-	}
-	if clientRole.String() != models.RoleSuperAdmin.String() && currentTopic.UserId != clientId {
-		return models.TopicCore{}, utils.ResponseError{
-			Code:    http.StatusForbidden,
-			Message: consts.ErrAccessDenied,
-		}
-	}
-
-	user, err := t.userGateway.GetUserById(clientId)
-	if err != nil {
-		return models.TopicCore{}, err
-	}
-
-	t.mosquittoGateway.WriteUpdatedTopicToAcl(user.Email, currentTopic.Name, topic.CanRead, topic.CanWrite)
-	return t.topicGateway.UpdateTopicPermissions(topic)
-}
-
 func (t *topicService) GetTopicById(id uint, clientId uint, clientRole models.Role) (models.TopicCore, error) {
 	topic, err := t.topicGateway.GetTopicById(id)
 	if err != nil {
@@ -91,6 +70,27 @@ func (t *topicService) GetAllTopics(page, pageSize *int, clientId uint, clientRo
 		return t.topicGateway.GetTopicsByUserId(clientId, offset, limit)
 	}
 	return t.topicGateway.GetAllTopics(offset, limit)
+}
+
+func (t *topicService) UpdateTopicPermissions(topic models.TopicCore, clientId uint, clientRole models.Role) (models.TopicCore, error) {
+	currentTopic, err := t.topicGateway.GetTopicById(topic.ID)
+	if err != nil {
+		return models.TopicCore{}, err
+	}
+	if clientRole.String() != models.RoleSuperAdmin.String() && currentTopic.UserId != clientId {
+		return models.TopicCore{}, utils.ResponseError{
+			Code:    http.StatusForbidden,
+			Message: consts.ErrAccessDenied,
+		}
+	}
+
+	user, err := t.userGateway.GetUserById(clientId)
+	if err != nil {
+		return models.TopicCore{}, err
+	}
+
+	t.mosquittoGateway.WriteUpdatedTopicToAcl(user.Email, currentTopic.Name, topic.CanRead, topic.CanWrite)
+	return t.topicGateway.UpdateTopicPermissions(topic)
 }
 
 func (t *topicService) DeleteTopic(id uint, clientId uint, clientRole models.Role) (err error) {

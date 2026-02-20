@@ -17,23 +17,23 @@ type UserGateway interface {
 }
 
 type MosquittoGateway interface {
-	MosquittoLaunch(mosquittoOn bool)
-	MosquittoStop()
 	WriteMosquittoPasswd(email, password string)
 	WriteNewUserToAcl(email string)
 	WriteNewTopicToAcl(email, name string, canRead, canWrite bool)
 	WriteUpdatedTopicToAcl(email, name string, canRead, canWrite bool)
 	DeleteTopicFromAcl(username, name string)
+	MosquittoLaunch(mosquittoOn bool)
+	MosquittoStop()
 }
 
 type TopicGateway interface {
 	CreateTopic(topic models.TopicCore) (models.TopicCore, error)
-	DeleteTopic(id uint) error
-	UpdateTopicPermissions(topic models.TopicCore) (models.TopicCore, error)
-	DoesExistTopic(id, userId uint, name string) (bool, error)
 	GetTopicById(id uint) (models.TopicCore, error)
 	GetTopicsByUserId(userId uint, offset, limit int) (topics []models.TopicCore, countRows uint, err error)
 	GetAllTopics(offset, limit int) (topics []models.TopicCore, countRows uint, err error)
+	UpdateTopicPermissions(topic models.TopicCore) (models.TopicCore, error)
+	DeleteTopic(id uint) error
+	DoesExistTopic(id, userId uint, name string) (bool, error)
 }
 
 type Gateways struct {
@@ -43,7 +43,7 @@ type Gateways struct {
 	TopicGateway     TopicGateway
 }
 
-func SetupGateways(
+func New(
 	pc db.PostgresClient,
 	mosquitto mosquitto.Mosquitto,
 ) Gateways {

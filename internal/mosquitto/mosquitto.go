@@ -29,7 +29,7 @@ type mosquitto struct {
 	mu      sync.Mutex
 }
 
-func NewMosquitto(loggers logger.Loggers) Mosquitto {
+func New(loggers logger.Loggers) Mosquitto {
 	dir := viper.GetString("mosquitto_dir_file")
 
 	if err := os.MkdirAll(dir, 0755); err != nil {

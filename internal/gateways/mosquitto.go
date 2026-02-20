@@ -15,6 +15,36 @@ func NewMosquittoGateway(mosquitto mosquitto.Mosquitto) *mosquittoGateway {
 	return &mosquittoGateway{mosquitto}
 }
 
+func (m *mosquittoGateway) WriteMosquittoPasswd(email, password string) {
+	args := []string{
+		"-b",
+		viper.GetString("mosquitto_dir_file") + "passwordfile",
+		email,
+		password,
+	}
+	_, _, code := m.mosquitto.RunCommand("mosquitto_passwd", args...)
+	if code != 0 {
+		//TODO: Обработка ошибки
+		return
+	}
+}
+
+func (m *mosquittoGateway) WriteNewUserToAcl(email string) {
+	m.mosquitto.WriteNewUserToAcl(email)
+}
+
+func (m *mosquittoGateway) WriteNewTopicToAcl(email, name string, canRead, canWrite bool) {
+	m.mosquitto.WriteNewTopicToAcl(email, name, canRead, canWrite)
+}
+
+func (m *mosquittoGateway) WriteUpdatedTopicToAcl(email, name string, canRead, canWrite bool) {
+	m.mosquitto.WriteUpdatedTopicToAcl(email, name, canRead, canWrite)
+}
+
+func (m *mosquittoGateway) DeleteTopicFromAcl(username, name string) {
+	m.mosquitto.DeleteTopicFromAcl(username, name)
+}
+
 func (m *mosquittoGateway) MosquittoLaunch(mosquittoOn bool) {
 	if mosquittoOn {
 		args := []string{
@@ -48,34 +78,4 @@ func (m *mosquittoGateway) MosquittoStop() {
 	}
 
 	m.mosquitto.RunCommand(command, args...)
-}
-
-func (m *mosquittoGateway) WriteMosquittoPasswd(email, password string) {
-	args := []string{
-		"-b",
-		viper.GetString("mosquitto_dir_file") + "passwordfile",
-		email,
-		password,
-	}
-	_, _, code := m.mosquitto.RunCommand("mosquitto_passwd", args...)
-	if code != 0 {
-		//TODO: Обработка ошибки
-		return
-	}
-}
-
-func (m *mosquittoGateway) WriteNewUserToAcl(email string) {
-	m.mosquitto.WriteNewUserToAcl(email)
-}
-
-func (m *mosquittoGateway) WriteNewTopicToAcl(email, name string, canRead, canWrite bool) {
-	m.mosquitto.WriteNewTopicToAcl(email, name, canRead, canWrite)
-}
-
-func (m *mosquittoGateway) WriteUpdatedTopicToAcl(email, name string, canRead, canWrite bool) {
-	m.mosquitto.WriteUpdatedTopicToAcl(email, name, canRead, canWrite)
-}
-
-func (m *mosquittoGateway) DeleteTopicFromAcl(username, name string) {
-	m.mosquitto.DeleteTopicFromAcl(username, name)
 }

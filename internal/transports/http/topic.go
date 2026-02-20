@@ -33,9 +33,9 @@ func (h *topicHandler) SetupTopicRoutes(router *gin.Engine) {
 	topicGroup := router.Group("/topic")
 	{
 		topicGroup.POST("/", h.CreateTopic)
-		topicGroup.PUT("/", h.UpdateTopicPermissions)
 		topicGroup.GET("/:id", h.GetTopicById)
 		topicGroup.GET("/", h.GetAllTopics)
+		topicGroup.PUT("/", h.UpdateTopicPermissions)
 		topicGroup.DELETE("/:id", h.DeleteTopic)
 	}
 }
@@ -85,60 +85,6 @@ func (h *topicHandler) CreateTopic(c *gin.Context) {
 
 	topicHttp := models.TopicHTTP{}
 	topicHttp.FromCore(newTopic)
-	c.JSON(http.StatusOK, gin.H{"topic": topicHttp})
-}
-
-type UpdateTopicPermissions struct {
-	ID       string `json:"id"`
-	CanRead  bool   `json:"can_read"`
-	CanWrite bool   `json:"can_write"`
-}
-
-func (h *topicHandler) UpdateTopicPermissions(c *gin.Context) {
-	var input UpdateTopicPermissions
-	if err := c.ShouldBindJSON(&input); err != nil {
-		h.loggers.Err.Printf("%s", err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	userId := c.Value(consts.KeyId).(uint)
-	role := c.Value(consts.KeyRole).(models.Role)
-
-	accessRoles := []models.Role{models.RoleUser, models.RoleSuperAdmin}
-	if !utils.DoesHaveRole(role, accessRoles) {
-		h.loggers.Err.Printf("%s", consts.ErrAccessDenied)
-		c.JSON(http.StatusForbidden, gin.H{"error": consts.ErrAccessDenied})
-		return
-	}
-
-	atoi, err := strconv.Atoi(input.ID)
-	if err != nil {
-		h.loggers.Err.Printf("%s", err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"error": consts.ErrAtoi})
-		return
-	}
-
-	topic := models.TopicCore{
-		ID:       uint(atoi),
-		CanRead:  input.CanRead,
-		CanWrite: input.CanWrite,
-	}
-
-	updatedTopic, err := h.topic.UpdateTopicPermissions(topic, userId, role)
-	if err != nil {
-		h.loggers.Err.Printf("%s", err.Error())
-		var respErr utils.ResponseError
-		if errors.As(err, &respErr) {
-			c.JSON(int(respErr.Code), gin.H{"error": respErr.Message})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-		return
-	}
-
-	topicHttp := models.TopicHTTP{}
-	topicHttp.FromCore(updatedTopic)
 	c.JSON(http.StatusOK, gin.H{"topic": topicHttp})
 }
 
@@ -227,6 +173,60 @@ func (h *topicHandler) GetAllTopics(c *gin.Context) {
 		"topics":     topicsHttp,
 		"count_rows": countRows,
 	})
+}
+
+type UpdateTopicPermissions struct {
+	ID       string `json:"id"`
+	CanRead  bool   `json:"can_read"`
+	CanWrite bool   `json:"can_write"`
+}
+
+func (h *topicHandler) UpdateTopicPermissions(c *gin.Context) {
+	var input UpdateTopicPermissions
+	if err := c.ShouldBindJSON(&input); err != nil {
+		h.loggers.Err.Printf("%s", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userId := c.Value(consts.KeyId).(uint)
+	role := c.Value(consts.KeyRole).(models.Role)
+
+	accessRoles := []models.Role{models.RoleUser, models.RoleSuperAdmin}
+	if !utils.DoesHaveRole(role, accessRoles) {
+		h.loggers.Err.Printf("%s", consts.ErrAccessDenied)
+		c.JSON(http.StatusForbidden, gin.H{"error": consts.ErrAccessDenied})
+		return
+	}
+
+	atoi, err := strconv.Atoi(input.ID)
+	if err != nil {
+		h.loggers.Err.Printf("%s", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": consts.ErrAtoi})
+		return
+	}
+
+	topic := models.TopicCore{
+		ID:       uint(atoi),
+		CanRead:  input.CanRead,
+		CanWrite: input.CanWrite,
+	}
+
+	updatedTopic, err := h.topic.UpdateTopicPermissions(topic, userId, role)
+	if err != nil {
+		h.loggers.Err.Printf("%s", err.Error())
+		var respErr utils.ResponseError
+		if errors.As(err, &respErr) {
+			c.JSON(int(respErr.Code), gin.H{"error": respErr.Message})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	topicHttp := models.TopicHTTP{}
+	topicHttp.FromCore(updatedTopic)
+	c.JSON(http.StatusOK, gin.H{"topic": topicHttp})
 }
 
 func (h *topicHandler) DeleteTopic(c *gin.Context) {

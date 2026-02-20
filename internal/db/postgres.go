@@ -16,11 +16,11 @@ import (
 )
 
 type PostgresClient struct {
-	Db         *gorm.DB
+	DB         *gorm.DB
 	InfoLogger *log.Logger
 }
 
-func InitPostgresClient(m consts.Mode, loggers logger.Loggers) (PostgresClient, error) {
+func NewPostgresClient(m consts.Mode, loggers logger.Loggers) (PostgresClient, error) {
 	// set stdout gorm logger depends on app mode
 	var dbLogger gormLogger.Interface
 	switch m {
@@ -62,7 +62,7 @@ func InitPostgresClient(m consts.Mode, loggers logger.Loggers) (PostgresClient, 
 		return PostgresClient{}, nil
 	}
 	postgresClient := PostgresClient{
-		Db:         db,
+		DB:         db,
 		InfoLogger: loggers.Info,
 	}
 	if migrateErr := postgresClient.Migrate(); migrateErr != nil {
@@ -72,7 +72,7 @@ func InitPostgresClient(m consts.Mode, loggers logger.Loggers) (PostgresClient, 
 }
 
 func (c *PostgresClient) Migrate() (err error) {
-	err = c.Db.AutoMigrate(
+	err = c.DB.AutoMigrate(
 		&models.UserCore{},
 		&models.TopicCore{},
 	)

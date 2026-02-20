@@ -3,9 +3,11 @@ package utils
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	"github.com/robboworld/mosquitto-broker/internal/models"
-	"golang.org/x/crypto/bcrypt"
 	"net/mail"
+
+	"golang.org/x/crypto/bcrypt"
+
+	"github.com/robboworld/mosquitto-broker/internal/models"
 )
 
 func HashPassword(s string) string {

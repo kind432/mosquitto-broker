@@ -24,10 +24,10 @@ type MosquittoService interface {
 
 type TopicService interface {
 	CreateTopic(topic models.TopicCore, clientId uint) (models.TopicCore, error)
-	DeleteTopic(id uint, clientId uint, clientRole models.Role) error
-	UpdateTopicPermissions(topic models.TopicCore, clientId uint, clientRole models.Role) (models.TopicCore, error)
 	GetTopicById(id uint, clientId uint, clientRole models.Role) (models.TopicCore, error)
 	GetAllTopics(page, pageSize *int, clientId uint, clientRole models.Role) (topics []models.TopicCore, countRows uint, err error)
+	UpdateTopicPermissions(topic models.TopicCore, clientId uint, clientRole models.Role) (models.TopicCore, error)
+	DeleteTopic(id uint, clientId uint, clientRole models.Role) error
 }
 
 type Services struct {
@@ -38,7 +38,7 @@ type Services struct {
 	TopicService     TopicService
 }
 
-func SetupServices(
+func New(
 	userGateway gateways.UserGateway,
 	mosquittoGateway gateways.MosquittoGateway,
 	topicGateway gateways.TopicGateway,
