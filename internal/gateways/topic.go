@@ -8,21 +8,20 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/robboworld/mosquitto-broker/internal/consts"
-	"github.com/robboworld/mosquitto-broker/internal/db"
 	"github.com/robboworld/mosquitto-broker/internal/models"
 	"github.com/robboworld/mosquitto-broker/pkg/utils"
 )
 
 type topicGateway struct {
-	postgresClient db.PostgresClient
+	db *gorm.DB
 }
 
-func NewTopicGateway(pc db.PostgresClient) *topicGateway {
-	return &topicGateway{pc}
+func NewTopicGateway(db *gorm.DB) *topicGateway {
+	return &topicGateway{db: db}
 }
 
 func (t *topicGateway) Create(topic models.TopicCore) (models.TopicCore, error) {
-	if err := t.postgresClient.DB.Create(&topic).Clauses(clause.Returning{}).Error; err != nil {
+	if err := t.db.Create(&topic).Clauses(clause.Returning{}).Error; err != nil {
 		return models.TopicCore{}, utils.ResponseError{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
@@ -34,7 +33,7 @@ func (t *topicGateway) Create(topic models.TopicCore) (models.TopicCore, error) 
 func (t *topicGateway) GetById(id uint) (models.TopicCore, error) {
 	var topic models.TopicCore
 
-	if err := t.postgresClient.DB.First(&topic, id).Error; err != nil {
+	if err := t.db.First(&topic, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return models.TopicCore{}, utils.ResponseError{
 				Code:    http.StatusBadRequest,
@@ -53,11 +52,7 @@ func (t *topicGateway) GetByUserId(userId uint, offset, limit int) ([]models.Top
 	var topics []models.TopicCore
 	var count int64
 
-	result := t.postgresClient.DB.
-		Limit(limit).
-		Offset(offset).
-		Where("user_id = ?", userId).
-		Find(&topics)
+	result := t.db.Limit(limit).Offset(offset).Where("user_id = ?", userId).Find(&topics)
 	if result.Error != nil {
 		return []models.TopicCore{}, 0, utils.ResponseError{
 			Code:    http.StatusInternalServerError,
@@ -72,7 +67,7 @@ func (t *topicGateway) GetAll(offset, limit int) ([]models.TopicCore, uint, erro
 	var topics []models.TopicCore
 	var count int64
 
-	result := t.postgresClient.DB.Limit(limit).Offset(offset).Find(&topics)
+	result := t.db.Limit(limit).Offset(offset).Find(&topics)
 	if result.Error != nil {
 		return []models.TopicCore{}, 0, utils.ResponseError{
 			Code:    http.StatusInternalServerError,
@@ -85,7 +80,7 @@ func (t *topicGateway) GetAll(offset, limit int) ([]models.TopicCore, uint, erro
 
 func (t *topicGateway) UpdatePermissions(topic models.TopicCore) (models.TopicCore, error) {
 	var existingTopic models.TopicCore
-	if err := t.postgresClient.DB.First(&existingTopic, topic.ID).Error; err != nil {
+	if err := t.db.First(&existingTopic, topic.ID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return models.TopicCore{}, utils.ResponseError{
 				Code:    http.StatusBadRequest,
@@ -98,7 +93,7 @@ func (t *topicGateway) UpdatePermissions(topic models.TopicCore) (models.TopicCo
 		}
 	}
 
-	if err := t.postgresClient.DB.Model(&existingTopic).
+	if err := t.db.Model(&existingTopic).
 		Updates(map[string]interface{}{
 			"can_read":  topic.CanRead,
 			"can_write": topic.CanWrite,
@@ -113,7 +108,7 @@ func (t *topicGateway) UpdatePermissions(topic models.TopicCore) (models.TopicCo
 }
 
 func (t *topicGateway) Delete(id uint) error {
-	if err := t.postgresClient.DB.Delete(&models.TopicCore{}, id).Error; err != nil {
+	if err := t.db.Delete(&models.TopicCore{}, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return utils.ResponseError{
 				Code:    http.StatusBadRequest,
@@ -129,7 +124,7 @@ func (t *topicGateway) Delete(id uint) error {
 }
 
 func (t *topicGateway) DoesExist(id, userId uint, name string) (bool, error) {
-	if err := t.postgresClient.DB.Where("id != ? AND user_id = ? AND name = ?", id, userId, name).
+	if err := t.db.Where("id != ? AND user_id = ? AND name = ?", id, userId, name).
 		Take(&models.TopicCore{}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, nil

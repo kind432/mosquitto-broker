@@ -44,12 +44,12 @@ type Gateways struct {
 }
 
 func New(
-	pc db.PostgresClient,
+	postgres db.PostgresDB,
 	mosquitto mosquitto.Mosquitto,
 ) Gateways {
 	return Gateways{
-		UserGateway:      NewUserGateway(pc),
+		UserGateway:      NewUserGateway(postgres.DB),
 		MosquittoGateway: NewMosquittoGateway(mosquitto),
-		TopicGateway:     NewTopicGateway(pc),
+		TopicGateway:     NewTopicGateway(postgres.DB),
 	}
 }

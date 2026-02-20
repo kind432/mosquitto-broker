@@ -15,12 +15,12 @@ import (
 	"github.com/robboworld/mosquitto-broker/pkg/logger"
 )
 
-type PostgresClient struct {
+type PostgresDB struct {
 	DB         *gorm.DB
 	InfoLogger *log.Logger
 }
 
-func NewPostgresClient(m consts.Mode, loggers logger.Loggers) (PostgresClient, error) {
+func NewPostgresDB(m consts.Mode, loggers logger.Loggers) (PostgresDB, error) {
 	// set stdout gorm logger depends on app mode
 	var dbLogger gormLogger.Interface
 	switch m {
@@ -59,19 +59,19 @@ func NewPostgresClient(m consts.Mode, loggers logger.Loggers) (PostgresClient, e
 	db, err := gorm.Open(postgres.Open(viper.GetString("postgres_dsn")), &gorm.Config{Logger: dbLogger})
 	if err != nil {
 		loggers.Err.Fatalf("Failed to initialize postgres client: %s", err.Error())
-		return PostgresClient{}, nil
+		return PostgresDB{}, nil
 	}
-	postgresClient := PostgresClient{
+	postgresDB := PostgresDB{
 		DB:         db,
 		InfoLogger: loggers.Info,
 	}
-	if migrateErr := postgresClient.Migrate(); migrateErr != nil {
+	if migrateErr := postgresDB.Migrate(); migrateErr != nil {
 		loggers.Err.Fatalf("Failed to migrate: %s", migrateErr.Error())
 	}
-	return postgresClient, err
+	return postgresDB, err
 }
 
-func (c *PostgresClient) Migrate() (err error) {
+func (c *PostgresDB) Migrate() (err error) {
 	err = c.DB.AutoMigrate(
 		&models.UserCore{},
 		&models.TopicCore{},

@@ -25,7 +25,7 @@ func InvokeWith(m consts.Mode, options ...fx.Option) *fx.App {
 		fx.Provide(func() consts.Mode { return m }),
 		fx.Provide(logger.New),
 		fx.Provide(mosquitto.New),
-		fx.Provide(db.NewPostgresClient),
+		fx.Provide(db.NewPostgresDB),
 		fx.Provide(gateways.New),
 		fx.Provide(services.New),
 		fx.Provide(http.NewHandlers),
