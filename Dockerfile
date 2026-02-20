@@ -7,8 +7,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -o app ./cmd
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o app ./cmd;
 
 FROM debian:bookworm-slim AS final
 
