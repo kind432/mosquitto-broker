@@ -4,8 +4,7 @@ package consts
 const (
 	ErrEmailAlreadyInUse        = "email already in use"
 	ErrAtoi                     = "string to int error"
-	ErrTopicIsExist             = "topic is already exist"
-	ErrTimeParse                = "string to time error"
+	ErrTopicAlreadyExist        = "topic is already exist"
 	ErrIncorrectPasswordOrEmail = "incorrect password or email"
 	ErrUserWithEmailNotFound    = "user with this email not found"
 	ErrNotFoundInDB             = "not found"
@@ -20,6 +19,5 @@ const (
 
 // http code 403
 const (
-	ErrUserIsNotActive = "user is not active. please check your email"
-	ErrAccessDenied    = "access denied"
+	ErrAccessDenied = "access denied"
 )

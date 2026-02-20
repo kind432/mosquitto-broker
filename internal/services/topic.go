@@ -40,7 +40,7 @@ func (t *topicService) CreateTopic(topic models.TopicCore, clientId uint) (model
 	if exist {
 		return models.TopicCore{}, utils.ResponseError{
 			Code:    http.StatusBadRequest,
-			Message: consts.ErrTopicIsExist,
+			Message: consts.ErrTopicAlreadyExist,
 		}
 	}
 

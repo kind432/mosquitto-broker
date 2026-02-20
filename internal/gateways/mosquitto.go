@@ -22,15 +22,12 @@ func (m *mosquittoGateway) MosquittoLaunch(mosquittoOn bool) {
 			viper.GetString("mosquitto_dir_file") + "mosquitto.conf",
 			"-v",
 		}
-		_, _, code :=
-			m.mosquitto.RunCommand(
-				viper.GetString("mosquitto_dir_exe")+"mosquitto",
-				args...,
-			)
-
-		if code != 0 {
-			//TODO: Обработка ошибки
-			return
+		err := m.mosquitto.RunCommandBackground(
+			viper.GetString("mosquitto_dir_exe")+"mosquitto",
+			args...,
+		)
+		if err != nil {
+			// TODO: обработка
 		}
 		return
 	}

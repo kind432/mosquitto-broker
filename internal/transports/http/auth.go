@@ -12,12 +12,22 @@ import (
 	"github.com/robboworld/mosquitto-broker/pkg/utils"
 )
 
-type AuthHandler struct {
-	loggers     logger.Loggers
-	authService services.AuthService
+type authHandler struct {
+	loggers logger.Loggers
+	auth    services.AuthService
 }
 
-func (h AuthHandler) SetupAuthRoutes(router *gin.Engine) {
+func NewAuthHandler(
+	loggers logger.Loggers,
+	auth services.AuthService,
+) *authHandler {
+	return &authHandler{
+		loggers: loggers,
+		auth:    auth,
+	}
+}
+
+func (h *authHandler) SetupAuthRoutes(router *gin.Engine) {
 	authGroup := router.Group("/auth")
 	{
 		authGroup.POST("/sign-up", h.SignUp)
@@ -32,7 +42,7 @@ type SignUp struct {
 	FullName string `json:"full_name"`
 }
 
-func (h AuthHandler) SignUp(c *gin.Context) {
+func (h *authHandler) SignUp(c *gin.Context) {
 	var input SignUp
 	if err := c.ShouldBindJSON(&input); err != nil {
 		h.loggers.Err.Printf("%s", err.Error())
@@ -48,7 +58,7 @@ func (h AuthHandler) SignUp(c *gin.Context) {
 		MosquittoOn: false,
 	}
 
-	err := h.authService.SignUp(newUser)
+	err := h.auth.SignUp(newUser)
 	if err != nil {
 		h.loggers.Err.Printf("%s", err.Error())
 		var respErr utils.ResponseError
@@ -68,7 +78,7 @@ type SignIn struct {
 	Password string `json:"password"`
 }
 
-func (h AuthHandler) SignIn(c *gin.Context) {
+func (h *authHandler) SignIn(c *gin.Context) {
 	var input SignIn
 	if err := c.ShouldBindJSON(&input); err != nil {
 		h.loggers.Err.Printf("%s", err.Error())
@@ -76,7 +86,7 @@ func (h AuthHandler) SignIn(c *gin.Context) {
 		return
 	}
 
-	tokens, err := h.authService.SignIn(input.Email, input.Password)
+	tokens, err := h.auth.SignIn(input.Email, input.Password)
 	if err != nil {
 		h.loggers.Err.Printf("%s", err.Error())
 		var respErr utils.ResponseError
@@ -98,7 +108,7 @@ type RefreshToken struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-func (h AuthHandler) RefreshToken(c *gin.Context) {
+func (h *authHandler) RefreshToken(c *gin.Context) {
 	var input RefreshToken
 	if err := c.ShouldBindJSON(&input); err != nil {
 		h.loggers.Err.Printf("%s", err.Error())
@@ -106,7 +116,7 @@ func (h AuthHandler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	accessToken, err := h.authService.Refresh(input.RefreshToken)
+	accessToken, err := h.auth.Refresh(input.RefreshToken)
 	if err != nil {
 		h.loggers.Err.Printf("%s", err.Error())
 		var respErr utils.ResponseError

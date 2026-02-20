@@ -20,7 +20,7 @@ type PostgresClient struct {
 	InfoLogger *log.Logger
 }
 
-func InitPostgresClient(m consts.Mode, loggers logger.Loggers) (postgresClient PostgresClient, err error) {
+func InitPostgresClient(m consts.Mode, loggers logger.Loggers) (PostgresClient, error) {
 	// set stdout gorm logger depends on app mode
 	var dbLogger gormLogger.Interface
 	switch m {
@@ -30,7 +30,7 @@ func InitPostgresClient(m consts.Mode, loggers logger.Loggers) (postgresClient P
 			loggers.Err.Fatalf("%s", err.Error())
 		}
 		defer func(gormF *os.File) {
-			err := gormF.Close()
+			err = gormF.Close()
 			if err != nil {
 				loggers.Err.Fatalf("%s", err.Error())
 			}
@@ -59,9 +59,9 @@ func InitPostgresClient(m consts.Mode, loggers logger.Loggers) (postgresClient P
 	db, err := gorm.Open(postgres.Open(viper.GetString("postgres_dsn")), &gorm.Config{Logger: dbLogger})
 	if err != nil {
 		loggers.Err.Fatalf("Failed to initialize postgres client: %s", err.Error())
-		return
+		return PostgresClient{}, nil
 	}
-	postgresClient = PostgresClient{
+	postgresClient := PostgresClient{
 		Db:         db,
 		InfoLogger: loggers.Info,
 	}

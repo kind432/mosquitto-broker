@@ -17,24 +17,30 @@ const defaultFailedCode = 1
 
 type Mosquitto interface {
 	RunCommand(name string, args ...string) (stdout, stderr string, exitCode int)
+	RunCommandBackground(name string, args ...string) error
 	WriteNewUserToAcl(username string)
 	WriteUpdatedTopicToAcl(username, name string, canRead, canWrite bool)
 	DeleteTopicFromAcl(username, name string)
 	WriteNewTopicToAcl(username, name string, canRead, canWrite bool)
 }
 
-type MosquittoImpl struct {
+type mosquitto struct {
 	loggers logger.Loggers
 	mu      sync.Mutex
 }
 
-func InitMosquitto(loggers logger.Loggers) Mosquitto {
-	return &MosquittoImpl{
+func NewMosquitto(loggers logger.Loggers) Mosquitto {
+	dir := viper.GetString("mosquitto_dir_file")
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		loggers.Err.Fatalf("cannot create mosquitto dir: %v", err)
+	}
+	return &mosquitto{
 		loggers: loggers,
 	}
 }
 
-func (m *MosquittoImpl) RunCommand(name string, args ...string) (stdout string, stderr string, exitCode int) {
+func (m *mosquitto) RunCommand(name string, args ...string) (stdout string, stderr string, exitCode int) {
 	m.loggers.Info.Println("run command:", name, args)
 
 	var outBuf, errBuf bytes.Buffer
@@ -71,7 +77,24 @@ func (m *MosquittoImpl) RunCommand(name string, args ...string) (stdout string, 
 	return
 }
 
-func (m *MosquittoImpl) WriteNewUserToAcl(username string) {
+func (m *mosquitto) RunCommandBackground(name string, args ...string) error {
+	m.loggers.Info.Println("run command in background:", name, args)
+
+	cmd := exec.Command(name, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err := cmd.Start()
+	if err != nil {
+		m.loggers.Err.Printf("start failed: %v", err)
+		return err
+	}
+
+	m.loggers.Info.Printf("process started with PID %d", cmd.Process.Pid)
+	return nil
+}
+
+func (m *mosquitto) WriteNewUserToAcl(username string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -95,7 +118,7 @@ func (m *MosquittoImpl) WriteNewUserToAcl(username string) {
 	}
 }
 
-func (m *MosquittoImpl) WriteNewTopicToAcl(username, name string, canRead, canWrite bool) {
+func (m *mosquitto) WriteNewTopicToAcl(username, name string, canRead, canWrite bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -138,7 +161,7 @@ func (m *MosquittoImpl) WriteNewTopicToAcl(username, name string, canRead, canWr
 	}
 }
 
-func (m *MosquittoImpl) WriteUpdatedTopicToAcl(username, name string, canRead, canWrite bool) {
+func (m *mosquitto) WriteUpdatedTopicToAcl(username, name string, canRead, canWrite bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -220,7 +243,7 @@ func (m *MosquittoImpl) WriteUpdatedTopicToAcl(username, name string, canRead, c
 	}
 }
 
-func (m *MosquittoImpl) DeleteTopicFromAcl(username, name string) {
+func (m *mosquitto) DeleteTopicFromAcl(username, name string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -257,7 +280,7 @@ func (m *MosquittoImpl) DeleteTopicFromAcl(username, name string) {
 	}
 }
 
-func (m *MosquittoImpl) readAcl(path string) ([]string, error) {
+func (m *mosquitto) readAcl(path string) ([]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -274,7 +297,7 @@ func (m *MosquittoImpl) readAcl(path string) ([]string, error) {
 	return lines, scanner.Err()
 }
 
-func (m *MosquittoImpl) writeAclAtomic(path string, lines []string) error {
+func (m *mosquitto) writeAclAtomic(path string, lines []string) error {
 	tmp := path + ".tmp"
 
 	data := strings.Join(lines, "\n") + "\n"

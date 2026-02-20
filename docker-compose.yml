@@ -1,35 +1,42 @@
 services:
   app:
-    container_name: mosquitto_broker
-    image: mosquitto_broker:latest
     build:
       context: .
-      dockerfile: Dockerfile
+    container_name: mosquitto_broker
     ports:
-      - "8000:8000"
+      - "8080:8000"
       - "1882:1882"
-    volumes:
-      - ~/.mb-data:/mqtt_broker/internal/mosquitto/
     depends_on:
-      - postgres-db
-
-  postgres-db:
-    image: postgres:latest
-    restart: always
-    container_name: mb_postgres_db
-    environment:
-      POSTGRES_USER: robbo
-      POSTGRES_PASSWORD: robbo_pwd
-      POSTGRES_DB: broker_db
-      PGDATA: /var/lib/postgresql/data/pgdata
-    ports:
-      - "5431:5431"
+      postgres:
+        condition: service_healthy
     volumes:
-      - ~/.mb-pg-data:/var/lib/postgresql/data/pgdata
-    command: -p 5431
+      - mosquitto_data:/mqtt_broker/mosquitto-data
+    networks:
+      - mq-broker-network
+
+  postgres:
+    image: postgres:18-alpine
+    container_name: mq-broker-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mq-broker-db}
+      POSTGRES_USER: ${POSTGRES_USER:-robbo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-robbo_pwd}
+    ports:
+      - "5431:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U robbo -d mq-broker-db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mq-broker-network
 
 volumes:
-  mb-data:
-    name: mb-data
-  mb-pg-data:
-    name: mb-pg-data
+  mosquitto_data:
+  postgres_data:
+
+networks:
+  mq-broker-network:
+    driver: bridge
