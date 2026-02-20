@@ -1,4 +1,4 @@
-package configs
+package config
 
 import (
 	"github.com/spf13/viper"
@@ -6,7 +6,7 @@ import (
 	"github.com/robboworld/mosquitto-broker/internal/consts"
 )
 
-func Init(m consts.Mode) error {
+func New(m consts.Mode) error {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yml")
 	viper.AddConfigPath("./configs")

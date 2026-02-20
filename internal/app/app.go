@@ -6,7 +6,7 @@ import (
 
 	"go.uber.org/fx"
 
-	"github.com/robboworld/mosquitto-broker/internal/configs"
+	"github.com/robboworld/mosquitto-broker/internal/config"
 	"github.com/robboworld/mosquitto-broker/internal/consts"
 	"github.com/robboworld/mosquitto-broker/internal/db"
 	"github.com/robboworld/mosquitto-broker/internal/gateways"
@@ -18,7 +18,7 @@ import (
 )
 
 func InvokeWith(m consts.Mode, options ...fx.Option) *fx.App {
-	if err := configs.Init(m); err != nil {
+	if err := config.New(m); err != nil {
 		log.Fatalf("%s", err.Error())
 	}
 	di := []fx.Option{
