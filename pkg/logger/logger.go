@@ -1,10 +1,12 @@
 package logger
 
 import (
-	"github.com/robboworld/mosquitto-broker/internal/consts"
-	"github.com/spf13/viper"
 	"log"
 	"os"
+
+	"github.com/spf13/viper"
+
+	"github.com/robboworld/mosquitto-broker/internal/consts"
 )
 
 type Loggers struct {
@@ -12,7 +14,7 @@ type Loggers struct {
 	Err  *log.Logger
 }
 
-func InitLogger(m consts.Mode) (loggers Loggers) {
+func New(m consts.Mode) (loggers Loggers) {
 	switch m {
 	case consts.Production:
 		infoF, err := os.OpenFile(viper.GetString("logger.info"), os.O_RDWR|os.O_CREATE, 0666)

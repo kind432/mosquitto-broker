@@ -2,14 +2,16 @@ package server
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
-	"github.com/robboworld/mosquitto-broker/internal/consts"
-	http2 "github.com/robboworld/mosquitto-broker/internal/transports/http"
-	"github.com/robboworld/mosquitto-broker/pkg/logger"
 	"github.com/rs/cors"
 	"github.com/spf13/viper"
 	"go.uber.org/fx"
-	"net/http"
+
+	"github.com/robboworld/mosquitto-broker/internal/consts"
+	http2 "github.com/robboworld/mosquitto-broker/internal/transports/http"
+	"github.com/robboworld/mosquitto-broker/pkg/logger"
 )
 
 func NewServer(

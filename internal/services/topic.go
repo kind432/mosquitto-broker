@@ -1,76 +1,56 @@
 package services
 
 import (
+	"net/http"
+
 	"github.com/robboworld/mosquitto-broker/internal/consts"
 	"github.com/robboworld/mosquitto-broker/internal/gateways"
 	"github.com/robboworld/mosquitto-broker/internal/models"
 	"github.com/robboworld/mosquitto-broker/pkg/utils"
-	"net/http"
 )
 
-type TopicService interface {
-	CreateTopic(topic models.TopicCore, clientId uint) (newTopic models.TopicCore, err error)
-	DeleteTopic(id uint, clientId uint, clientRole models.Role) (err error)
-	UpdateTopicPermissions(topic models.TopicCore, clientId uint, clientRole models.Role) (updatedTopic models.TopicCore, err error)
-	GetTopicById(id uint, clientId uint, clientRole models.Role) (topic models.TopicCore, err error)
-	GetAllTopics(page, pageSize *int, clientId uint, clientRole models.Role) (topics []models.TopicCore, countRows uint, err error)
-}
-
-type TopicServiceImpl struct {
+type topicService struct {
 	topicGateway     gateways.TopicGateway
 	userGateway      gateways.UserGateway
 	mosquittoGateway gateways.MosquittoGateway
 }
 
-func (t TopicServiceImpl) CreateTopic(topic models.TopicCore, clientId uint) (newTopic models.TopicCore, err error) {
-	user, err := t.userGateway.GetUserById(clientId)
+func NewTopicService(
+	topicGateway gateways.TopicGateway,
+	userGateway gateways.UserGateway,
+	mosquittoGateway gateways.MosquittoGateway,
+) *topicService {
+	return &topicService{
+		topicGateway:     topicGateway,
+		userGateway:      userGateway,
+		mosquittoGateway: mosquittoGateway,
+	}
+}
+
+func (t *topicService) Create(topic models.TopicCore, clientId uint) (models.TopicCore, error) {
+	user, err := t.userGateway.GetById(clientId)
 	if err != nil {
 		return models.TopicCore{}, err
 	}
 
-	exist, err := t.topicGateway.DoesExistTopic(0, user.ID, topic.Name)
+	exist, err := t.topicGateway.DoesExist(0, user.ID, topic.Name)
 	if err != nil {
 		return models.TopicCore{}, err
 	}
 	if exist {
 		return models.TopicCore{}, utils.ResponseError{
 			Code:    http.StatusBadRequest,
-			Message: consts.ErrTopicIsExist,
+			Message: consts.ErrTopicAlreadyExist,
 		}
 	}
 
 	t.mosquittoGateway.WriteNewTopicToAcl(user.Email, topic.Name, topic.CanRead, topic.CanWrite)
 
-	newTopic, err = t.topicGateway.CreateTopic(topic)
-	if err != nil {
-		return models.TopicCore{}, err
-	}
-	return newTopic, nil
+	return t.topicGateway.Create(topic)
 }
 
-func (t TopicServiceImpl) UpdateTopicPermissions(topic models.TopicCore, clientId uint, clientRole models.Role) (updatedTopic models.TopicCore, err error) {
-	currentTopic, err := t.topicGateway.GetTopicById(topic.ID)
-	if err != nil {
-		return models.TopicCore{}, err
-	}
-	if clientRole.String() != models.RoleSuperAdmin.String() && currentTopic.UserId != clientId {
-		return models.TopicCore{}, utils.ResponseError{
-			Code:    http.StatusForbidden,
-			Message: consts.ErrAccessDenied,
-		}
-	}
-
-	user, err := t.userGateway.GetUserById(clientId)
-	if err != nil {
-		return models.TopicCore{}, err
-	}
-
-	t.mosquittoGateway.WriteUpdatedTopicToAcl(user.Email, currentTopic.Name, topic.CanRead, topic.CanWrite)
-	return t.topicGateway.UpdateTopicPermissions(topic)
-}
-
-func (t TopicServiceImpl) GetTopicById(id uint, clientId uint, clientRole models.Role) (topic models.TopicCore, err error) {
-	topic, err = t.topicGateway.GetTopicById(id)
+func (t *topicService) GetById(id uint, clientId uint, clientRole models.Role) (models.TopicCore, error) {
+	topic, err := t.topicGateway.GetById(id)
 	if err != nil {
 		return models.TopicCore{}, err
 	}
@@ -84,16 +64,37 @@ func (t TopicServiceImpl) GetTopicById(id uint, clientId uint, clientRole models
 	return topic, nil
 }
 
-func (t TopicServiceImpl) GetAllTopics(page, pageSize *int, clientId uint, clientRole models.Role) (topics []models.TopicCore, countRows uint, err error) {
+func (t *topicService) GetAll(page, pageSize *int, clientId uint, clientRole models.Role) ([]models.TopicCore, uint, error) {
 	offset, limit := utils.GetOffsetAndLimit(page, pageSize)
 	if clientRole.String() != models.RoleSuperAdmin.String() {
-		return t.topicGateway.GetTopicsByUserId(clientId, offset, limit)
+		return t.topicGateway.GetByUserId(clientId, offset, limit)
 	}
-	return t.topicGateway.GetAllTopics(offset, limit)
+	return t.topicGateway.GetAll(offset, limit)
 }
 
-func (t TopicServiceImpl) DeleteTopic(id uint, clientId uint, clientRole models.Role) (err error) {
-	topic, err := t.topicGateway.GetTopicById(id)
+func (t *topicService) UpdatePermissions(topic models.TopicCore, clientId uint, clientRole models.Role) (models.TopicCore, error) {
+	currentTopic, err := t.topicGateway.GetById(topic.ID)
+	if err != nil {
+		return models.TopicCore{}, err
+	}
+	if clientRole.String() != models.RoleSuperAdmin.String() && currentTopic.UserId != clientId {
+		return models.TopicCore{}, utils.ResponseError{
+			Code:    http.StatusForbidden,
+			Message: consts.ErrAccessDenied,
+		}
+	}
+
+	user, err := t.userGateway.GetById(clientId)
+	if err != nil {
+		return models.TopicCore{}, err
+	}
+
+	t.mosquittoGateway.WriteUpdatedTopicToAcl(user.Email, currentTopic.Name, topic.CanRead, topic.CanWrite)
+	return t.topicGateway.UpdatePermissions(topic)
+}
+
+func (t *topicService) Delete(id uint, clientId uint, clientRole models.Role) (err error) {
+	topic, err := t.topicGateway.GetById(id)
 	if err != nil {
 		return err
 	}
@@ -103,11 +104,11 @@ func (t TopicServiceImpl) DeleteTopic(id uint, clientId uint, clientRole models.
 			Message: consts.ErrAccessDenied,
 		}
 	}
-	user, err := t.userGateway.GetUserById(clientId)
+	user, err := t.userGateway.GetById(clientId)
 	if err != nil {
 		return err
 	}
 
 	t.mosquittoGateway.DeleteTopicFromAcl(user.Email, topic.Name)
-	return t.topicGateway.DeleteTopic(id)
+	return t.topicGateway.Delete(id)
 }

@@ -1,9 +1,10 @@
 package models
 
 import (
-	"gorm.io/gorm"
 	"strconv"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type TopicHTTP struct {

@@ -2,21 +2,33 @@ package http
 
 import (
 	"errors"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
+
 	"github.com/robboworld/mosquitto-broker/internal/consts"
 	"github.com/robboworld/mosquitto-broker/internal/models"
 	"github.com/robboworld/mosquitto-broker/internal/services"
 	"github.com/robboworld/mosquitto-broker/pkg/logger"
 	"github.com/robboworld/mosquitto-broker/pkg/utils"
-	"net/http"
 )
 
-type MosquittoHandler struct {
-	loggers          logger.Loggers
-	mosquittoService services.MosquittoService
+type mosquittoHandler struct {
+	loggers   logger.Loggers
+	mosquitto services.MosquittoService
 }
 
-func (h MosquittoHandler) SetupMosquittoRoutes(router *gin.Engine) {
+func NewMosquittoHandler(
+	loggers logger.Loggers,
+	mosquitto services.MosquittoService,
+) *mosquittoHandler {
+	return &mosquittoHandler{
+		loggers:   loggers,
+		mosquitto: mosquitto,
+	}
+}
+
+func (h *mosquittoHandler) SetupMosquittoRoutes(router *gin.Engine) {
 	mosquittoGroup := router.Group("/mosquitto")
 	{
 		mosquittoGroup.POST("/launch", h.Launch)
@@ -27,7 +39,7 @@ type MosquittoConfig struct {
 	MosquittoOn bool `json:"mosquitto_on"`
 }
 
-func (h MosquittoHandler) Launch(c *gin.Context) {
+func (h *mosquittoHandler) Launch(c *gin.Context) {
 	userId := c.Value(consts.KeyId).(uint)
 	role := c.Value(consts.KeyRole).(models.Role)
 	accessRoles := []models.Role{models.RoleUser, models.RoleSuperAdmin}
@@ -43,7 +55,7 @@ func (h MosquittoHandler) Launch(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}
 
-	err := h.mosquittoService.MosquittoLaunch(userId, input.MosquittoOn)
+	err := h.mosquitto.Launch(userId, input.MosquittoOn)
 	if err != nil {
 		h.loggers.Err.Printf("%s", err.Error())
 		var respErr utils.ResponseError

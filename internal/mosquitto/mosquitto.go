@@ -4,35 +4,43 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
-	"github.com/robboworld/mosquitto-broker/pkg/logger"
-	"github.com/spf13/viper"
 	"os"
 	"os/exec"
 	"strings"
-	"syscall"
+	"sync"
+
+	"github.com/robboworld/mosquitto-broker/pkg/logger"
+	"github.com/spf13/viper"
 )
 
 const defaultFailedCode = 1
 
 type Mosquitto interface {
 	RunCommand(name string, args ...string) (stdout, stderr string, exitCode int)
+	RunCommandBackground(name string, args ...string) error
 	WriteNewUserToAcl(username string)
 	WriteUpdatedTopicToAcl(username, name string, canRead, canWrite bool)
 	DeleteTopicFromAcl(username, name string)
 	WriteNewTopicToAcl(username, name string, canRead, canWrite bool)
 }
 
-type MosquittoImpl struct {
+type mosquitto struct {
 	loggers logger.Loggers
+	mu      sync.Mutex
 }
 
-func InitMosquitto(loggers logger.Loggers) Mosquitto {
-	return &MosquittoImpl{
+func New(loggers logger.Loggers) Mosquitto {
+	dir := viper.GetString("mosquitto_dir_file")
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		loggers.Err.Fatalf("cannot create mosquitto dir: %v", err)
+	}
+	return &mosquitto{
 		loggers: loggers,
 	}
 }
 
-func (m MosquittoImpl) RunCommand(name string, args ...string) (stdout string, stderr string, exitCode int) {
+func (m *mosquitto) RunCommand(name string, args ...string) (stdout string, stderr string, exitCode int) {
 	m.loggers.Info.Println("run command:", name, args)
 
 	var outBuf, errBuf bytes.Buffer
@@ -40,235 +48,276 @@ func (m MosquittoImpl) RunCommand(name string, args ...string) (stdout string, s
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
 
-	err := cmd.Run()
+	err := cmd.Start()
+	if err != nil {
+		m.loggers.Err.Printf("start failed: %v", err)
+		return "", err.Error(), defaultFailedCode
+	}
+
+	err = cmd.Wait()
+
 	stdout = outBuf.String()
 	stderr = errBuf.String()
 
 	if err != nil {
-		var exitError *exec.ExitError
-		if errors.As(err, &exitError) {
-			if ws, ok := exitError.Sys().(syscall.WaitStatus); ok {
-				exitCode = ws.ExitStatus()
-			} else {
-				exitCode = defaultFailedCode
-			}
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			exitCode = exitErr.ExitCode()
 		} else {
-			m.loggers.Err.Printf("Could not get exit code for failed program: %v, %v", name, args)
 			exitCode = defaultFailedCode
-			if stderr == "" {
-				stderr = err.Error()
-			}
 		}
 	} else {
-		if ws, ok := cmd.ProcessState.Sys().(syscall.WaitStatus); ok {
-			exitCode = ws.ExitStatus()
-		} else {
-			exitCode = defaultFailedCode
-		}
+		exitCode = cmd.ProcessState.ExitCode()
 	}
+
 	m.loggers.Info.Println("command result")
-	m.loggers.Info.Printf("stdout: %v", stdout)
-	m.loggers.Err.Printf("stderr: %v", stderr)
-	m.loggers.Info.Printf("exitCode: %v", exitCode)
+	m.loggers.Info.Printf("stdout: %s", stdout)
+	m.loggers.Err.Printf("stderr: %s", stderr)
+	m.loggers.Info.Printf("exitCode: %d", exitCode)
 	return
 }
 
-func (m MosquittoImpl) WriteNewUserToAcl(username string) {
-	f, err := os.OpenFile(viper.GetString("mosquitto_dir_file")+"mosquitto.acl",
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+func (m *mosquitto) RunCommandBackground(name string, args ...string) error {
+	m.loggers.Info.Println("run command in background:", name, args)
 
+	cmd := exec.Command(name, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err := cmd.Start()
 	if err != nil {
-		m.loggers.Err.Printf("Could not open mosquitto.acl: %v", err)
+		m.loggers.Err.Printf("start failed: %v", err)
+		return err
 	}
-	defer f.Close()
 
-	data := "user " + username + "\r\n"
-	if _, err = f.WriteString(data); err != nil {
-		m.loggers.Err.Printf("Could not write to mosquitto.acl: %v", err)
-	}
+	m.loggers.Info.Printf("process started with PID %d", cmd.Process.Pid)
+	return nil
 }
 
-func (m MosquittoImpl) WriteNewTopicToAcl(username, name string, canRead, canWrite bool) {
+func (m *mosquitto) WriteNewUserToAcl(username string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	aclPath := viper.GetString("mosquitto_dir_file") + "mosquitto.acl"
 
-	file, err := os.Open(aclPath)
-	if err != nil {
-		m.loggers.Err.Printf("Could not open mosquitto.acl for reading: %v", err)
+	lines, err := m.readAcl(aclPath)
+	if err != nil && !os.IsNotExist(err) {
+		m.loggers.Err.Println(err)
 		return
 	}
-	defer file.Close()
 
-	var buffer bytes.Buffer
-	scanner := bufio.NewScanner(file)
-	userFound := false
-
-	var permissions string
-	if canRead && canWrite {
-		permissions = "readwrite"
-	} else if canRead {
-		permissions = "read"
-	} else if canWrite {
-		permissions = "write"
-	}
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		buffer.WriteString(line + "\n")
-
-		if line == "user "+username {
-			userFound = true
-			buffer.WriteString("topic " + permissions + " " + name + "\n")
+	for _, l := range lines {
+		if l == "user "+username {
+			return
 		}
 	}
 
-	if err = scanner.Err(); err != nil {
-		m.loggers.Err.Printf("Error reading mosquitto.acl: %v", err)
-		return
-	}
-
-	if !userFound {
-		m.loggers.Err.Printf("Could not find user %s", username)
-		return
-	}
-
-	if err = os.WriteFile(aclPath, buffer.Bytes(), 0644); err != nil {
-		m.loggers.Err.Printf("Could not write updated data to mosquitto.acl: %v", err)
+	lines = append(lines, "", "user "+username)
+	if err = m.writeAclAtomic(aclPath, lines); err != nil {
+		m.loggers.Err.Println(err)
 	}
 }
 
-func (m MosquittoImpl) WriteUpdatedTopicToAcl(username, name string, canRead, canWrite bool) {
+func (m *mosquitto) WriteNewTopicToAcl(username, name string, canRead, canWrite bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	aclPath := viper.GetString("mosquitto_dir_file") + "mosquitto.acl"
+
+	lines, err := m.readAcl(aclPath)
+	if err != nil {
+		m.loggers.Err.Println(err)
+		return
+	}
+
+	perm := permission(canRead, canWrite)
+	if perm == "" {
+		return
+	}
+
+	topicLine := "topic " + perm + " " + name
+
+	var result []string
+	userFound := false
+
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		result = append(result, line)
+
+		if line == "user "+username {
+			userFound = true
+
+			result = append(result, topicLine)
+		}
+	}
+
+	if !userFound {
+		m.loggers.Err.Printf("user %s not found", username)
+		return
+	}
+
+	if err = m.writeAclAtomic(aclPath, result); err != nil {
+		m.loggers.Err.Println(err)
+	}
+}
+
+func (m *mosquitto) WriteUpdatedTopicToAcl(username, name string, canRead, canWrite bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	aclPath := viper.GetString("mosquitto_dir_file") + "mosquitto.acl"
 
 	file, err := os.Open(aclPath)
 	if err != nil {
-		m.loggers.Err.Printf("Could not open mosquitto.acl for reading: %v", err)
+		m.loggers.Err.Printf("open acl error: %v", err)
 		return
 	}
 	defer file.Close()
 
-	var buffer bytes.Buffer
+	var lines []string
 	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+
+	if err = scanner.Err(); err != nil {
+		m.loggers.Err.Println(err)
+		return
+	}
+
+	perm := permission(canRead, canWrite)
+	if perm == "" {
+		return
+	}
+
+	newTopic := "topic " + perm + " " + name
+
 	userFound := false
 	topicUpdated := false
+	inUser := false
 
-	var permissions string
-	if canRead && canWrite {
-		permissions = "readwrite"
-	} else if canRead {
-		permissions = "read"
-	} else if canWrite {
-		permissions = "write"
-	}
-
-	var topicLine string
-	if permissions == "" {
-		topicLine = "topic " + name
-	} else {
-		topicLine = "topic " + permissions + " " + name
-	}
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "user "+username {
-			userFound = true
-			buffer.WriteString(line + "\n")
-
-			for scanner.Scan() {
-				nextLine := scanner.Text()
-				if strings.HasPrefix(nextLine, "topic") && strings.Contains(nextLine, name) {
-					buffer.WriteString(topicLine + "\n")
-					topicUpdated = true
-				} else {
-					buffer.WriteString(nextLine + "\n")
-				}
-
-				if nextLine == "" {
-					break
-				}
+	var result []string
+	for _, line := range lines {
+		if strings.HasPrefix(line, "user ") {
+			inUser = line == "user "+username
+			if inUser {
+				userFound = true
 			}
-			if !topicUpdated {
-				m.loggers.Err.Printf("Could not find topic %s", topicLine)
-				return
-			}
-		} else {
-			buffer.WriteString(line + "\n")
+			result = append(result, line)
+			continue
 		}
-	}
+		if inUser && strings.HasPrefix(line, "topic ") {
+			fields := strings.Fields(line)
+			if len(fields) > 0 &&
+				fields[len(fields)-1] == name {
 
-	if err = scanner.Err(); err != nil {
-		m.loggers.Err.Printf("Error reading mosquitto.acl: %v", err)
-		return
+				result = append(result, newTopic)
+				topicUpdated = true
+				continue
+			}
+		}
+
+		result = append(result, line)
 	}
 
 	if !userFound {
-		m.loggers.Err.Printf("Could not find user %s", username)
+		m.loggers.Err.Printf("user %s not found", username)
 		return
 	}
 
-	if err = os.WriteFile(aclPath, buffer.Bytes(), 0644); err != nil {
-		m.loggers.Err.Printf("Could not write updated data to mosquitto.acl: %v", err)
+	if !topicUpdated {
+		m.loggers.Err.Printf("topic %s not found", name)
+		return
+	}
+
+	tmp := aclPath + ".tmp"
+	data := strings.Join(result, "\n") + "\n"
+	if err = os.WriteFile(tmp, []byte(data), 0644); err != nil {
+		m.loggers.Err.Println(err)
+		return
+	}
+
+	if err = os.Rename(tmp, aclPath); err != nil {
+		m.loggers.Err.Println(err)
 	}
 }
 
-func (m MosquittoImpl) DeleteTopicFromAcl(username, name string) {
+func (m *mosquitto) DeleteTopicFromAcl(username, name string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	aclPath := viper.GetString("mosquitto_dir_file") + "mosquitto.acl"
 
-	file, err := os.Open(aclPath)
+	lines, err := m.readAcl(aclPath)
 	if err != nil {
-		m.loggers.Err.Printf("Could not open mosquitto.acl for reading: %v", err)
+		m.loggers.Err.Println(err)
 		return
+	}
+
+	var result []string
+	inUser := false
+
+	for _, line := range lines {
+		if strings.HasPrefix(line, "user ") {
+			inUser = line == "user "+username
+			result = append(result, line)
+			continue
+		}
+		if inUser && strings.HasPrefix(line, "topic ") {
+			fields := strings.Fields(line)
+			if len(fields) > 1 &&
+				fields[len(fields)-1] == name {
+				continue
+			}
+		}
+
+		result = append(result, line)
+	}
+
+	if err = m.writeAclAtomic(aclPath, result); err != nil {
+		m.loggers.Err.Println(err)
+	}
+}
+
+func (m *mosquitto) readAcl(path string) ([]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
 	}
 	defer file.Close()
 
-	var buffer bytes.Buffer
+	var lines []string
 	scanner := bufio.NewScanner(file)
-	userFound := false
-	topicDeleted := false
-
-	readTopic := "topic read " + name
-	writeTopic := "topic write " + name
-	readWriteTopic := "topic readwrite " + name
-	topic := "topic " + name
 
 	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "user "+username {
-			userFound = true
-			buffer.WriteString(line + "\n")
-
-			for scanner.Scan() {
-				nextLine := scanner.Text()
-				if nextLine == readTopic || nextLine == writeTopic ||
-					nextLine == readWriteTopic || nextLine == topic {
-					topicDeleted = true
-					continue
-				}
-
-				buffer.WriteString(nextLine + "\n")
-				if nextLine == "" {
-					break
-				}
-			}
-		} else {
-			buffer.WriteString(line + "\n")
-		}
+		lines = append(lines, scanner.Text())
 	}
 
-	if err = scanner.Err(); err != nil {
-		m.loggers.Err.Printf("Error reading mosquitto.acl: %v", err)
-		return
+	return lines, scanner.Err()
+}
+
+func (m *mosquitto) writeAclAtomic(path string, lines []string) error {
+	tmp := path + ".tmp"
+
+	data := strings.Join(lines, "\n") + "\n"
+
+	if err := os.WriteFile(tmp, []byte(data), 0644); err != nil {
+		return err
 	}
 
-	if !userFound {
-		m.loggers.Err.Printf("Could not find user %s", username)
-		return
-	}
-	if !topicDeleted {
-		m.loggers.Err.Printf("Could not find topic %s for user %s with the specified permissions", name, username)
-		return
-	}
+	return os.Rename(tmp, path)
+}
 
-	if err = os.WriteFile(aclPath, buffer.Bytes(), 0644); err != nil {
-		m.loggers.Err.Printf("Could not write updated data to mosquitto.acl: %v", err)
+func permission(canRead, canWrite bool) string {
+	if canRead && canWrite {
+		return "readwrite"
 	}
+	if canRead {
+		return "read"
+	}
+	if canWrite {
+		return "write"
+	}
+	return ""
 }

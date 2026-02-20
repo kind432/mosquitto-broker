@@ -2,28 +2,32 @@ FROM golang:1.20 AS builder
 
 WORKDIR /mqtt_broker
 
-COPY . .
-
+COPY go.mod go.sum ./
 RUN go mod download
 
-RUN go build -o app ./main.go
+COPY . .
 
-FROM debian:bookworm AS final
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o app ./cmd
 
-RUN apt-get update && apt-get install -y \
+FROM debian:bookworm-slim AS final
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
     mosquitto \
     mosquitto-clients \
-    procps && \
-    rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /mqtt_broker
 
-COPY --from=builder /mqtt_broker /mqtt_broker
+COPY --from=builder /mqtt_broker/app .
+COPY configs ./configs
+COPY mosquitto-data ./mosquitto-data
 
-RUN mkdir -p /mqtt_broker/internal/mosquitto && \
-    touch /mqtt_broker/internal/mosquitto/mosquitto.log && \
-    chmod 666 /mqtt_broker/internal/mosquitto/mosquitto.log
+RUN chmod -R 777 /mqtt_broker
 
 ENV MOSQUITTO_PORT=1882
 
-CMD ["/mqtt_broker/app"]
+EXPOSE 1882 8000
+
+CMD ["./app"]

@@ -1,24 +1,26 @@
 package db
 
 import (
-	"github.com/robboworld/mosquitto-broker/internal/consts"
-	"github.com/robboworld/mosquitto-broker/internal/models"
-	"github.com/robboworld/mosquitto-broker/pkg/logger"
+	"log"
+	"os"
+	"time"
+
 	"github.com/spf13/viper"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	gormLogger "gorm.io/gorm/logger"
-	"log"
-	"os"
-	"time"
+
+	"github.com/robboworld/mosquitto-broker/internal/consts"
+	"github.com/robboworld/mosquitto-broker/internal/models"
+	"github.com/robboworld/mosquitto-broker/pkg/logger"
 )
 
-type PostgresClient struct {
-	Db         *gorm.DB
+type PostgresDB struct {
+	DB         *gorm.DB
 	InfoLogger *log.Logger
 }
 
-func InitPostgresClient(m consts.Mode, loggers logger.Loggers) (postgresClient PostgresClient, err error) {
+func NewPostgresDB(m consts.Mode, loggers logger.Loggers) (PostgresDB, error) {
 	// set stdout gorm logger depends on app mode
 	var dbLogger gormLogger.Interface
 	switch m {
@@ -28,7 +30,7 @@ func InitPostgresClient(m consts.Mode, loggers logger.Loggers) (postgresClient P
 			loggers.Err.Fatalf("%s", err.Error())
 		}
 		defer func(gormF *os.File) {
-			err := gormF.Close()
+			err = gormF.Close()
 			if err != nil {
 				loggers.Err.Fatalf("%s", err.Error())
 			}
@@ -57,20 +59,20 @@ func InitPostgresClient(m consts.Mode, loggers logger.Loggers) (postgresClient P
 	db, err := gorm.Open(postgres.Open(viper.GetString("postgres_dsn")), &gorm.Config{Logger: dbLogger})
 	if err != nil {
 		loggers.Err.Fatalf("Failed to initialize postgres client: %s", err.Error())
-		return
+		return PostgresDB{}, nil
 	}
-	postgresClient = PostgresClient{
-		Db:         db,
+	postgresDB := PostgresDB{
+		DB:         db,
 		InfoLogger: loggers.Info,
 	}
-	if migrateErr := postgresClient.Migrate(); migrateErr != nil {
+	if migrateErr := postgresDB.Migrate(); migrateErr != nil {
 		loggers.Err.Fatalf("Failed to migrate: %s", migrateErr.Error())
 	}
-	return postgresClient, err
+	return postgresDB, err
 }
 
-func (c *PostgresClient) Migrate() (err error) {
-	err = c.Db.AutoMigrate(
+func (c *PostgresDB) Migrate() (err error) {
+	err = c.DB.AutoMigrate(
 		&models.UserCore{},
 		&models.TopicCore{},
 	)

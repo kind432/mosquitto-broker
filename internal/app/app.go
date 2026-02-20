@@ -1,7 +1,12 @@
 package app
 
 import (
-	"github.com/robboworld/mosquitto-broker/internal/configs"
+	"log"
+	"os"
+
+	"go.uber.org/fx"
+
+	"github.com/robboworld/mosquitto-broker/internal/config"
 	"github.com/robboworld/mosquitto-broker/internal/consts"
 	"github.com/robboworld/mosquitto-broker/internal/db"
 	"github.com/robboworld/mosquitto-broker/internal/gateways"
@@ -10,23 +15,20 @@ import (
 	"github.com/robboworld/mosquitto-broker/internal/services"
 	"github.com/robboworld/mosquitto-broker/internal/transports/http"
 	"github.com/robboworld/mosquitto-broker/pkg/logger"
-	"go.uber.org/fx"
-	"log"
-	"os"
 )
 
 func InvokeWith(m consts.Mode, options ...fx.Option) *fx.App {
-	if err := configs.Init(m); err != nil {
+	if err := config.New(m); err != nil {
 		log.Fatalf("%s", err.Error())
 	}
 	di := []fx.Option{
 		fx.Provide(func() consts.Mode { return m }),
-		fx.Provide(logger.InitLogger),
-		fx.Provide(mosquitto.InitMosquitto),
-		fx.Provide(db.InitPostgresClient),
-		fx.Provide(gateways.SetupGateways),
-		fx.Provide(services.SetupServices),
-		fx.Provide(http.SetupHandlers),
+		fx.Provide(logger.New),
+		fx.Provide(mosquitto.New),
+		fx.Provide(db.NewPostgresDB),
+		fx.Provide(gateways.New),
+		fx.Provide(services.New),
+		fx.Provide(http.NewHandlers),
 	}
 	for _, option := range options {
 		di = append(di, option)

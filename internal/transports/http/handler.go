@@ -6,13 +6,13 @@ import (
 )
 
 type Handlers struct {
-	AuthHandler      AuthHandler
-	UserHandler      UserHandler
-	MosquittoHandler MosquittoHandler
-	TopicHandler     TopicHandler
+	AuthHandler      *authHandler
+	UserHandler      *userHandler
+	MosquittoHandler *mosquittoHandler
+	TopicHandler     *topicHandler
 }
 
-func SetupHandlers(
+func NewHandlers(
 	loggers logger.Loggers,
 	authService services.AuthService,
 	userService services.UserService,
@@ -20,21 +20,9 @@ func SetupHandlers(
 	topicService services.TopicService,
 ) Handlers {
 	return Handlers{
-		AuthHandler: AuthHandler{
-			loggers:     loggers,
-			authService: authService,
-		},
-		UserHandler: UserHandler{
-			loggers:     loggers,
-			userService: userService,
-		},
-		MosquittoHandler: MosquittoHandler{
-			loggers:          loggers,
-			mosquittoService: mosquittoService,
-		},
-		TopicHandler: TopicHandler{
-			loggers:      loggers,
-			topicService: topicService,
-		},
+		AuthHandler:      NewAuthHandler(loggers, authService),
+		UserHandler:      NewUserHandler(loggers, userService),
+		MosquittoHandler: NewMosquittoHandler(loggers, mosquittoService),
+		TopicHandler:     NewTopicHandler(loggers, topicService),
 	}
 }

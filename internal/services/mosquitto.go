@@ -4,29 +4,36 @@ import (
 	"github.com/robboworld/mosquitto-broker/internal/gateways"
 )
 
-type MosquittoService interface {
-	MosquittoLaunch(id uint, mosquittoOn bool) error
-	MosquittoStop()
-}
-
-type MosquittoServiceImpl struct {
-	mosquittoGateway gateways.MosquittoGateway
+type mosquittoService struct {
 	userGateway      gateways.UserGateway
+	mosquittoGateway gateways.MosquittoGateway
 }
 
-func (m MosquittoServiceImpl) MosquittoLaunch(id uint, mosquittoOn bool) error {
+func NewMosquittoService(
+	userGateway gateways.UserGateway,
+	mosquittoGateway gateways.MosquittoGateway,
+) *mosquittoService {
+	return &mosquittoService{
+		userGateway:      userGateway,
+		mosquittoGateway: mosquittoGateway,
+	}
+}
+
+func (m *mosquittoService) Launch(id uint, mosquittoOn bool) error {
 	err := m.userGateway.SetMosquittoOn(id, mosquittoOn)
 	if err != nil {
 		return err
 	}
+
 	if mosquittoOn {
 		m.mosquittoGateway.MosquittoLaunch(mosquittoOn)
 	} else {
 		m.mosquittoGateway.MosquittoStop()
 	}
+
 	return nil
 }
 
-func (m MosquittoServiceImpl) MosquittoStop() {
+func (m *mosquittoService) Stop() {
 	m.mosquittoGateway.MosquittoStop()
 }
