@@ -10,15 +10,15 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserGatewayImpl struct {
+type userGatewayImpl struct {
 	db *gorm.DB
 }
 
-func NewUserGateway(db *gorm.DB) *UserGatewayImpl {
-	return &UserGatewayImpl{db: db}
+func NewUserGateway(db *gorm.DB) *userGateway {
+	return &userGateway{db: db}
 }
 
-func (u *UserGatewayImpl) Create(user models.UserCore) error {
+func (u *userGateway) Create(user models.UserCore) error {
 	if err := u.db.Create(&user).Error; err != nil {
 		return utils.ResponseError{
 			Code:    http.StatusInternalServerError,
@@ -28,7 +28,7 @@ func (u *UserGatewayImpl) Create(user models.UserCore) error {
 	return nil
 }
 
-func (u *UserGatewayImpl) GetById(id uint) (models.UserCore, error) {
+func (u *userGateway) GetById(id uint) (models.UserCore, error) {
 	var user models.UserCore
 
 	if err := u.db.First(&user, id).Error; err != nil {
@@ -46,7 +46,7 @@ func (u *UserGatewayImpl) GetById(id uint) (models.UserCore, error) {
 	return user, nil
 }
 
-func (u *UserGatewayImpl) GetByEmail(email string) (models.UserCore, error) {
+func (u *userGateway) GetByEmail(email string) (models.UserCore, error) {
 	var user models.UserCore
 
 	if err := u.db.Where("email = ?", email).Take(&user).Error; err != nil {
@@ -64,7 +64,7 @@ func (u *UserGatewayImpl) GetByEmail(email string) (models.UserCore, error) {
 	return user, nil
 }
 
-func (u *UserGatewayImpl) DoesExistEmail(id uint, email string) (bool, error) {
+func (u *userGateway) DoesExistEmail(id uint, email string) (bool, error) {
 	if err := u.db.Where("id != ? AND email = ?", id, email).
 		Take(&models.UserCore{}).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -78,7 +78,7 @@ func (u *UserGatewayImpl) DoesExistEmail(id uint, email string) (bool, error) {
 	return true, nil
 }
 
-func (u *UserGatewayImpl) SetMosquittoOn(id uint, mosquittoOn bool) error {
+func (u *userGateway) SetMosquittoOn(id uint, mosquittoOn bool) error {
 	var user models.UserCore
 
 	if err := u.db.First(&user, id).Error; err != nil {
